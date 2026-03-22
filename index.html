@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P&L Dashboard | LA TRIBU</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--surface2:#253349;--border:#334155;--text:#f1f5f9;--muted:#94a3b8;--green:#10b981;--red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;--teal:#14b8a6;--purple:#a78bfa;--accent:#22d3ee;font-family:system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.logo{font-size:18px;font-weight:700;color:var(--accent)}
+.logo span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
+.filters{display:flex;gap:8px;align-items:center}
+.btn-mes{padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;transition:all .15s}
+.btn-mes.active{background:var(--accent);border-color:var(--accent);color:#0f172a;font-weight:600}
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;gap:0;overflow-x:auto}
+.tab{padding:12px 18px;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab:hover:not(.active){color:var(--text)}
+.main{padding:20px;max-width:1600px;margin:0 auto}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.kpi-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-val{font-size:22px;font-weight:700}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.kpi-green .kpi-val{color:var(--green)}
+.kpi-red .kpi-val{color:var(--red)}
+.kpi-blue .kpi-val{color:var(--blue)}
+.kpi-amber .kpi-val{color:var(--amber)}
+.kpi-teal .kpi-val{color:var(--teal)}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px}
+.section-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.chart-wrap{position:relative;width:100%}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);font-weight:500;font-size:11px;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+th:hover{color:var(--text)}
+td{padding:7px 10px;border-bottom:1px solid var(--surface2)}
+tr:hover td{background:var(--surface2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+.badge-green{background:rgba(16,185,129,.15);color:#34d399}
+.badge-red{background:rgba(239,68,68,.15);color:#f87171}
+.badge-amber{background:rgba(245,158,11,.15);color:#fcd34d}
+.badge-blue{background:rgba(59,130,246,.15);color:#93c5fd}
+.code{font-family:monospace;font-size:11px;color:var(--muted)}
+.tag{font-size:10px;background:var(--surface2);padding:2px 6px;border-radius:3px;color:var(--muted)}
+.pbar-wrap{background:var(--surface2);border-radius:3px;height:6px;min-width:60px}
+.pbar{height:6px;border-radius:3px}
+.alert-box{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#fca5a5}
+.tbl-container{overflow-x:auto;max-height:480px;overflow-y:auto}
+.tbl-container::-webkit-scrollbar{width:5px;height:5px}
+.tbl-container::-webkit-scrollbar-track{background:var(--surface)}
+.tbl-container::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.panel{display:none}
+.panel.active{display:block}
+.note{font-size:11px;color:var(--muted);background:rgba(34,211,238,.05);border:1px solid rgba(34,211,238,.15);border-radius:6px;padding:10px 14px;margin-bottom:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">LA TRIBU <span>| P&L Dashboard 2026</span></div>
+  <div class="filters">
+    <span style="font-size:11px;color:var(--muted);margin-right:4px">MES:</span>
+    <button class="btn-mes active" onclick="setMes('ENE')">ENE</button>
+    <button class="btn-mes" onclick="setMes('FEB')">FEB</button>
+    <button class="btn-mes" onclick="setMes('MZO')">MZO</button>
+    <button class="btn-mes" onclick="setMes('TODOS')">TODOS</button>
+  </div>
+</header>
+<div class="tabs">
+  <div class="tab active" onclick="setTab('resumen')">Resumen P&L</div>
+  <div class="tab" onclick="setTab('proyectos')">Por Proyecto</div>
+  <div class="tab" onclick="setTab('clientes')">Por Cliente</div>
+  <div class="tab" onclick="setTab('overhead')">Overhead</div>
+  <div class="tab" onclick="setTab('horas')">Horas vs Budget</div>
+</div>
+<div class="main">
+<div id="kpis" class="kpi-grid"></div>
+<div id="panel-resumen" class="panel active"></div>
+<div id="panel-proyectos" class="panel"></div>
+<div id="panel-clientes" class="panel"></div>
+<div id="panel-overhead" class="panel"></div>
+<div id="panel-horas" class="panel"></div>
+</div>
+
+<script>
+const PL = [{"mes":"ENE","codigo":"TWW-TRB-DES-BARI-APP#665","cliente":"Cliente 1","proyecto":"App Móvil","clasificacion":"DESARROLLO","venta":450000,"ingreso":225000,"costo_nomina_real":850.92,"costo_nomina_estimado":972.48,"oh_real":41490.57,"oh_presupuesto":89293.92,"margen_real":182658.51,"margen_presupuesto":134733.6,"margen_pct":81.2,"hrs_reales":28,"hrs_estimadas":32,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-BARI-APP#665","cliente":"Cliente 1","proyecto":"App Móvil","clasificacion":"DESARROLLO","venta":450000,"ingreso":247500,"costo_nomina_real":850.92,"costo_nomina_estimado":972.48,"oh_real":43509.39,"oh_presupuesto":89293.92,"margen_real":203139.69,"margen_presupuesto":157233.6,"margen_pct":82.1,"hrs_reales":28,"hrs_estimadas":32,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-BARI-APP#665","cliente":"Cliente 1","proyecto":"App Móvil","clasificacion":"DESARROLLO","venta":450000,"ingreso":247500,"costo_nomina_real":1215.6,"costo_nomina_estimado":1194.33,"oh_real":43509.39,"oh_presupuesto":89293.92,"margen_real":202775.01,"margen_presupuesto":157011.76,"margen_pct":81.9,"hrs_reales":40,"hrs_estimadas":39.3,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-MEJ-BI-APP$410","cliente":"Cliente 2","proyecto":"Desarrollo Mejoras App","clasificacion":"MEJORA","venta":40000,"ingreso":20000,"costo_nomina_real":573.8,"costo_nomina_estimado":487.28,"oh_real":3688.05,"oh_presupuesto":7937.24,"margen_real":15738.15,"margen_presupuesto":11575.48,"margen_pct":78.7,"hrs_reales":37.8,"hrs_estimadas":32.1,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-MEJ-BI-APP$410","cliente":"Cliente 2","proyecto":"Desarrollo Mejoras App","clasificacion":"MEJORA","venta":40000,"ingreso":22000,"costo_nomina_real":573.8,"costo_nomina_estimado":487.28,"oh_real":3867.5,"oh_presupuesto":7937.24,"margen_real":17558.7,"margen_presupuesto":13575.48,"margen_pct":79.8,"hrs_reales":37.8,"hrs_estimadas":32.1,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-MEJ-BI-APP$410","cliente":"Cliente 2","proyecto":"Desarrollo Mejoras App","clasificacion":"MEJORA","venta":40000,"ingreso":22000,"costo_nomina_real":607.2,"costo_nomina_estimado":598.09,"oh_real":3867.5,"oh_presupuesto":7937.24,"margen_real":17525.3,"margen_presupuesto":13464.67,"margen_pct":79.7,"hrs_reales":40,"hrs_estimadas":39.4,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-VWAY-QR#26","cliente":"Cliente 3","proyecto":"Retiros QR","clasificacion":"DESARROLLO","venta":35000,"ingreso":17500,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":3227.04,"oh_presupuesto":6945.08,"margen_real":14272.96,"margen_presupuesto":10554.92,"margen_pct":81.6,"hrs_reales":54,"hrs_estimadas":32.2,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-VWAY-QR#26","cliente":"Cliente 3","proyecto":"Retiros QR","clasificacion":"DESARROLLO","venta":35000,"ingreso":19250,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":3384.06,"oh_presupuesto":6945.08,"margen_real":15865.94,"margen_presupuesto":12304.92,"margen_pct":82.4,"hrs_reales":54,"hrs_estimadas":32.2,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-VWAY-QR#26","cliente":"Cliente 3","proyecto":"Retiros QR","clasificacion":"DESARROLLO","venta":35000,"ingreso":19250,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":3384.06,"oh_presupuesto":6945.08,"margen_real":15865.94,"margen_presupuesto":12304.92,"margen_pct":82.4,"hrs_reales":40,"hrs_estimadas":39.5,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-SPEC-APP#624","cliente":"Cliente 4","proyecto":"App","clasificacion":"DESARROLLO","venta":100000,"ingreso":50000,"costo_nomina_real":811.62,"costo_nomina_estimado":485.47,"oh_real":9220.13,"oh_presupuesto":19843.09,"margen_real":39968.25,"margen_presupuesto":29671.44,"margen_pct":79.9,"hrs_reales":54,"hrs_estimadas":32.3,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-SPEC-APP#624","cliente":"Cliente 4","proyecto":"App","clasificacion":"DESARROLLO","venta":100000,"ingreso":55000,"costo_nomina_real":811.62,"costo_nomina_estimado":485.47,"oh_real":9668.75,"oh_presupuesto":19843.09,"margen_real":44519.63,"margen_presupuesto":34671.44,"margen_pct":80.9,"hrs_reales":54,"hrs_estimadas":32.3,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-SPEC-APP#624","cliente":"Cliente 4","proyecto":"App","clasificacion":"DESARROLLO","venta":100000,"ingreso":55000,"costo_nomina_real":601.2,"costo_nomina_estimado":595.19,"oh_real":9668.75,"oh_presupuesto":19843.09,"margen_real":44730.05,"margen_presupuesto":34561.72,"margen_pct":81.3,"hrs_reales":40,"hrs_estimadas":39.6,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-SPEC-WEB#624","cliente":"Cliente 5","proyecto":"Website","clasificacion":"DESARROLLO","venta":23455,"ingreso":11727.5,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":2162.58,"oh_presupuesto":4654.2,"margen_real":9564.92,"margen_presupuesto":7073.3,"margen_pct":81.6,"hrs_reales":54,"hrs_estimadas":32.4,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-SPEC-WEB#624","cliente":"Cliente 5","proyecto":"Website","clasificacion":"DESARROLLO","venta":23455,"ingreso":12900.25,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":2267.81,"oh_presupuesto":4654.2,"margen_real":10632.44,"margen_presupuesto":8246.05,"margen_pct":82.4,"hrs_reales":54,"hrs_estimadas":32.4,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-SPEC-WEB#624","cliente":"Cliente 5","proyecto":"Website","clasificacion":"DESARROLLO","venta":23455,"ingreso":12900.25,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":2267.81,"oh_presupuesto":4654.2,"margen_real":10632.44,"margen_presupuesto":8246.05,"margen_pct":82.4,"hrs_reales":40,"hrs_estimadas":39.7,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-AGO-ECOM#707","cliente":"Cliente 6","proyecto":"E-commerce","clasificacion":"DESARROLLO","venta":78900,"ingreso":39450,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":7274.68,"oh_presupuesto":15656.2,"margen_real":32175.32,"margen_presupuesto":23793.8,"margen_pct":81.6,"hrs_reales":54,"hrs_estimadas":32.5,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-AGO-ECOM#707","cliente":"Cliente 6","proyecto":"E-commerce","clasificacion":"DESARROLLO","venta":78900,"ingreso":43395,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":7628.65,"oh_presupuesto":15656.2,"margen_real":35766.35,"margen_presupuesto":27738.8,"margen_pct":82.4,"hrs_reales":54,"hrs_estimadas":32.5,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-AGO-ECOM#707","cliente":"Cliente 6","proyecto":"E-commerce","clasificacion":"DESARROLLO","venta":78900,"ingreso":43395,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":7628.65,"oh_presupuesto":15656.2,"margen_real":35766.35,"margen_presupuesto":27738.8,"margen_pct":82.4,"hrs_reales":40,"hrs_estimadas":39.8,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-BI-CLUB#388","cliente":"Cliente 7","proyecto":"Puntos Dobles Club Bi","clasificacion":"DESARROLLO","venta":275000,"ingreso":137500,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":25355.35,"oh_presupuesto":54568.5,"margen_real":112144.65,"margen_presupuesto":82931.5,"margen_pct":81.6,"hrs_reales":54,"hrs_estimadas":32.6,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-BI-CLUB#388","cliente":"Cliente 7","proyecto":"Puntos Dobles Club Bi","clasificacion":"DESARROLLO","venta":275000,"ingreso":0,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":26589.07,"oh_presupuesto":54568.5,"margen_real":-26589.07,"margen_presupuesto":-54568.5,"margen_pct":null,"hrs_reales":54,"hrs_estimadas":32.6,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-BI-CLUB#388","cliente":"Cliente 7","proyecto":"Puntos Dobles Club Bi","clasificacion":"DESARROLLO","venta":275000,"ingreso":25000,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":26589.07,"oh_presupuesto":54568.5,"margen_real":-1589.07,"margen_presupuesto":-29568.5,"margen_pct":-6.4,"hrs_reales":40,"hrs_estimadas":39.9,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-COM-WEB#153","cliente":"Cliente 8","proyecto":"Website ISC","clasificacion":"DESARROLLO","venta":495000,"ingreso":247500,"costo_nomina_real":2094.66,"costo_nomina_estimado":1288.62,"oh_real":45639.63,"oh_presupuesto":98223.31,"margen_real":199765.71,"margen_presupuesto":147988.07,"margen_pct":80.7,"hrs_reales":108,"hrs_estimadas":66.3,"personas":2},{"mes":"FEB","codigo":"TWW-TRB-DES-COM-WEB#153","cliente":"Cliente 8","proyecto":"Website ISC","clasificacion":"DESARROLLO","venta":495000,"ingreso":0,"costo_nomina_real":2094.66,"costo_nomina_estimado":1288.62,"oh_real":47860.32,"oh_presupuesto":98223.31,"margen_real":-49954.98,"margen_presupuesto":-99511.93,"margen_pct":null,"hrs_reales":108,"hrs_estimadas":66.3,"personas":2},{"mes":"MZO","codigo":"TWW-TRB-DES-COM-WEB#153","cliente":"Cliente 8","proyecto":"Website ISC","clasificacion":"DESARROLLO","venta":495000,"ingreso":0,"costo_nomina_real":1865.62,"costo_nomina_estimado":1571.79,"oh_real":47860.32,"oh_presupuesto":98223.31,"margen_real":-49725.94,"margen_presupuesto":-99795.1,"margen_pct":null,"hrs_reales":94,"hrs_estimadas":80.9,"personas":2},{"mes":"ENE","codigo":"TWW-TRB-DES-AGO-INFR#707","cliente":"Cliente 9","proyecto":"E-comm Infraestructura","clasificacion":"DESARROLLO","venta":44000,"ingreso":22000,"costo_nomina_real":1169.1,"costo_nomina_estimado":710.12,"oh_real":4056.86,"oh_presupuesto":8730.96,"margen_real":16774.04,"margen_presupuesto":12558.92,"margen_pct":76.2,"hrs_reales":54,"hrs_estimadas":32.8,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-AGO-INFR#707","cliente":"Cliente 9","proyecto":"E-comm Infraestructura","clasificacion":"DESARROLLO","venta":44000,"ingreso":0,"costo_nomina_real":1169.1,"costo_nomina_estimado":710.12,"oh_real":4254.25,"oh_presupuesto":8730.96,"margen_real":-5423.35,"margen_presupuesto":-9441.08,"margen_pct":null,"hrs_reales":54,"hrs_estimadas":32.8,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-AGO-INFR#707","cliente":"Cliente 9","proyecto":"E-comm Infraestructura","clasificacion":"DESARROLLO","venta":44000,"ingreso":0,"costo_nomina_real":866,"costo_nomina_estimado":868.17,"oh_real":4254.25,"oh_presupuesto":8730.96,"margen_real":-5120.25,"margen_presupuesto":-9599.13,"margen_pct":null,"hrs_reales":40,"hrs_estimadas":40.1,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-BI-LIB#388","cliente":"Cliente 10","proyecto":"Actualización Librería Club Bi","clasificacion":"DESARROLLO","venta":38500,"ingreso":19250,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":3549.75,"oh_presupuesto":7639.59,"margen_real":15700.25,"margen_presupuesto":11610.41,"margen_pct":81.6,"hrs_reales":54,"hrs_estimadas":32.9,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-BI-LIB#388","cliente":"Cliente 10","proyecto":"Actualización Librería Club Bi","clasificacion":"DESARROLLO","venta":38500,"ingreso":21175,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":3722.47,"oh_presupuesto":7639.59,"margen_real":17452.53,"margen_presupuesto":13535.41,"margen_pct":82.4,"hrs_reales":54,"hrs_estimadas":32.9,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-BI-LIB#388","cliente":"Cliente 10","proyecto":"Actualización Librería Club Bi","clasificacion":"DESARROLLO","venta":38500,"ingreso":45000,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":3722.47,"oh_presupuesto":7639.59,"margen_real":41277.53,"margen_presupuesto":37360.41,"margen_pct":91.7,"hrs_reales":40,"hrs_estimadas":40.2,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-SOP-APS-SOP#387","cliente":"Cliente 11","proyecto":"Proyecto Soporte APS","clasificacion":"SOPORTE","venta":110000,"ingreso":33000,"costo_nomina_real":779.76,"costo_nomina_estimado":476.52,"oh_real":10142.14,"oh_presupuesto":21827.4,"margen_real":22078.1,"margen_presupuesto":10696.08,"margen_pct":66.9,"hrs_reales":54,"hrs_estimadas":33,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-SOP-APS-SOP#387","cliente":"Cliente 11","proyecto":"Proyecto Soporte APS","clasificacion":"SOPORTE","venta":110000,"ingreso":36300,"costo_nomina_real":779.76,"costo_nomina_estimado":476.52,"oh_real":10635.63,"oh_presupuesto":21827.4,"margen_real":24884.61,"margen_presupuesto":13996.08,"margen_pct":68.6,"hrs_reales":54,"hrs_estimadas":33,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-SOP-APS-SOP#387","cliente":"Cliente 11","proyecto":"Proyecto Soporte APS","clasificacion":"SOPORTE","venta":110000,"ingreso":36300,"costo_nomina_real":577.6,"costo_nomina_estimado":581.93,"oh_real":10635.63,"oh_presupuesto":21827.4,"margen_real":25086.77,"margen_presupuesto":13890.67,"margen_pct":69.1,"hrs_reales":40,"hrs_estimadas":40.3,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-BI-FIDE","cliente":"Cliente 12","proyecto":"Perfiles Fidelización","clasificacion":"DESARROLLO","venta":25800.5,"ingreso":7740.15,"costo_nomina_real":641.52,"costo_nomina_estimado":393.23,"oh_real":2378.84,"oh_presupuesto":5119.62,"margen_real":4719.79,"margen_presupuesto":2227.3,"margen_pct":61,"hrs_reales":54,"hrs_estimadas":33.1,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-BI-FIDE","cliente":"Cliente 12","proyecto":"Perfiles Fidelización","clasificacion":"DESARROLLO","venta":25800.5,"ingreso":8514.17,"costo_nomina_real":641.52,"costo_nomina_estimado":393.23,"oh_real":2494.59,"oh_presupuesto":5119.62,"margen_real":5378.06,"margen_presupuesto":3001.32,"margen_pct":63.2,"hrs_reales":54,"hrs_estimadas":33.1,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-BI-FIDE","cliente":"Cliente 12","proyecto":"Perfiles Fidelización","clasificacion":"DESARROLLO","venta":25800.5,"ingreso":8514.17,"costo_nomina_real":522.72,"costo_nomina_estimado":479.95,"oh_real":2494.59,"oh_presupuesto":5119.62,"margen_real":5496.86,"margen_presupuesto":2914.6,"margen_pct":64.6,"hrs_reales":44,"hrs_estimadas":40.4,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-BI-CONS#388","cliente":"Cliente 13","proyecto":"Consola Administrativa","clasificacion":"DESARROLLO","venta":86790,"ingreso":26037,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":8002.15,"oh_presupuesto":17221.82,"margen_real":18034.85,"margen_presupuesto":8815.18,"margen_pct":69.3,"hrs_reales":54,"hrs_estimadas":33.2,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-BI-CONS#388","cliente":"Cliente 13","proyecto":"Consola Administrativa","clasificacion":"DESARROLLO","venta":86790,"ingreso":28640.7,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":8391.51,"oh_presupuesto":17221.82,"margen_real":20249.19,"margen_presupuesto":11418.88,"margen_pct":70.7,"hrs_reales":54,"hrs_estimadas":33.2,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-BI-CONS#388","cliente":"Cliente 13","proyecto":"Consola Administrativa","clasificacion":"DESARROLLO","venta":86790,"ingreso":28640.7,"costo_nomina_real":0,"costo_nomina_estimado":0,"oh_real":8391.51,"oh_presupuesto":17221.82,"margen_real":20249.19,"margen_presupuesto":11418.88,"margen_pct":70.7,"hrs_reales":44,"hrs_estimadas":40.5,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-G&T-SDK#192","cliente":"Cliente 14","proyecto":"SDK FRI (Frontend)","clasificacion":"DESARROLLO","venta":302500,"ingreso":90750,"costo_nomina_real":788.94,"costo_nomina_estimado":486.51,"oh_real":27890.88,"oh_presupuesto":60025.36,"margen_real":62070.18,"margen_presupuesto":30238.13,"margen_pct":68.4,"hrs_reales":54,"hrs_estimadas":33.3,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-G&T-SDK#192","cliente":"Cliente 14","proyecto":"SDK FRI (Frontend)","clasificacion":"DESARROLLO","venta":302500,"ingreso":99825,"costo_nomina_real":788.94,"costo_nomina_estimado":486.51,"oh_real":29247.98,"oh_presupuesto":60025.36,"margen_real":69788.08,"margen_presupuesto":39313.13,"margen_pct":69.9,"hrs_reales":54,"hrs_estimadas":33.3,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-G&T-SDK#192","cliente":"Cliente 14","proyecto":"SDK FRI (Frontend)","clasificacion":"DESARROLLO","venta":302500,"ingreso":99825,"costo_nomina_real":642.84,"costo_nomina_estimado":593.17,"oh_real":29247.98,"oh_presupuesto":60025.36,"margen_real":69934.18,"margen_presupuesto":39206.48,"margen_pct":70.1,"hrs_reales":44,"hrs_estimadas":40.6,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-ICA-UXUI","cliente":"Cliente 15","proyecto":"UX/UI Billetera Digital","clasificacion":"DESARROLLO","venta":544500,"ingreso":163350,"costo_nomina_real":649.08,"costo_nomina_estimado":401.47,"oh_real":50203.59,"oh_presupuesto":108045.64,"margen_real":112497.33,"margen_presupuesto":54902.89,"margen_pct":68.9,"hrs_reales":54,"hrs_estimadas":33.4,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-ICA-UXUI","cliente":"Cliente 15","proyecto":"UX/UI Billetera Digital","clasificacion":"DESARROLLO","venta":544500,"ingreso":179685,"costo_nomina_real":649.08,"costo_nomina_estimado":401.47,"oh_real":52646.36,"oh_presupuesto":108045.64,"margen_real":126389.56,"margen_presupuesto":71237.89,"margen_pct":70.3,"hrs_reales":54,"hrs_estimadas":33.4,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-ICA-UXUI","cliente":"Cliente 15","proyecto":"UX/UI Billetera Digital","clasificacion":"DESARROLLO","venta":544500,"ingreso":79000,"costo_nomina_real":336.56,"costo_nomina_estimado":489.21,"oh_real":52646.36,"oh_presupuesto":108045.64,"margen_real":26017.08,"margen_presupuesto":-29534.85,"margen_pct":32.9,"hrs_reales":28,"hrs_estimadas":40.7,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-HDF-WEB#612","cliente":"Cliente 16","proyecto":"Website E-commerce","clasificacion":"DESARROLLO","venta":61600,"ingreso":18480,"costo_nomina_real":717.66,"costo_nomina_estimado":445.22,"oh_real":5679.6,"oh_presupuesto":12223.35,"margen_real":12082.74,"margen_presupuesto":5811.44,"margen_pct":65.4,"hrs_reales":54,"hrs_estimadas":33.5,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-HDF-WEB#612","cliente":"Cliente 16","proyecto":"Website E-commerce","clasificacion":"DESARROLLO","venta":61600,"ingreso":20328,"costo_nomina_real":717.66,"costo_nomina_estimado":445.22,"oh_real":5955.95,"oh_presupuesto":12223.35,"margen_real":13654.39,"margen_presupuesto":7659.44,"margen_pct":67.2,"hrs_reales":54,"hrs_estimadas":33.5,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-HDF-WEB#612","cliente":"Cliente 16","proyecto":"Website E-commerce","clasificacion":"DESARROLLO","venta":61600,"ingreso":20328,"costo_nomina_real":502.36,"costo_nomina_estimado":542.23,"oh_real":5955.95,"oh_presupuesto":12223.35,"margen_real":13869.69,"margen_presupuesto":7562.42,"margen_pct":68.2,"hrs_reales":37.8,"hrs_estimadas":40.8,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-COM-WEB#153B","cliente":"Cliente 17","proyecto":"Website ICV","clasificacion":"DESARROLLO","venta":53900,"ingreso":16170,"costo_nomina_real":2094.66,"costo_nomina_estimado":1288.62,"oh_real":4969.65,"oh_presupuesto":10695.43,"margen_real":9105.69,"margen_presupuesto":4185.95,"margen_pct":56.3,"hrs_reales":108,"hrs_estimadas":66.3,"personas":2},{"mes":"FEB","codigo":"TWW-TRB-DES-COM-WEB#153B","cliente":"Cliente 17","proyecto":"Website ICV","clasificacion":"DESARROLLO","venta":53900,"ingreso":17787,"costo_nomina_real":2094.66,"costo_nomina_estimado":1288.62,"oh_real":5211.46,"oh_presupuesto":10695.43,"margen_real":10480.88,"margen_presupuesto":5802.95,"margen_pct":58.9,"hrs_reales":108,"hrs_estimadas":66.3,"personas":2},{"mes":"MZO","codigo":"TWW-TRB-DES-COM-WEB#153B","cliente":"Cliente 17","proyecto":"Website ICV","clasificacion":"DESARROLLO","venta":53900,"ingreso":17787,"costo_nomina_real":1865.62,"costo_nomina_estimado":1571.79,"oh_real":5211.46,"oh_presupuesto":10695.43,"margen_real":10709.92,"margen_presupuesto":5519.79,"margen_pct":60.2,"hrs_reales":94,"hrs_estimadas":80.9,"personas":2},{"mes":"ENE","codigo":"TWW-TRB-DES-CGM-WEB#656","cliente":"Cliente 18","proyecto":"Website (CGM)","clasificacion":"DESARROLLO","venta":154000,"ingreso":46200,"costo_nomina_real":3593.16,"costo_nomina_estimado":3362.07,"oh_real":14199,"oh_presupuesto":30558.36,"margen_real":28407.85,"margen_presupuesto":12279.57,"margen_pct":61.5,"hrs_reales":365.6,"hrs_estimadas":317.9,"personas":8},{"mes":"FEB","codigo":"TWW-TRB-DES-CGM-WEB#656","cliente":"Cliente 18","proyecto":"Website (CGM)","clasificacion":"DESARROLLO","venta":154000,"ingreso":50820,"costo_nomina_real":3940.42,"costo_nomina_estimado":3362.07,"oh_real":14889.88,"oh_presupuesto":30558.36,"margen_real":31989.7,"margen_presupuesto":16899.57,"margen_pct":62.9,"hrs_reales":406,"hrs_estimadas":317.9,"personas":8},{"mes":"MZO","codigo":"TWW-TRB-DES-CGM-WEB#656","cliente":"Cliente 18","proyecto":"Website (CGM)","clasificacion":"DESARROLLO","venta":154000,"ingreso":50820,"costo_nomina_real":4177.87,"costo_nomina_estimado":3713.49,"oh_real":14889.88,"oh_presupuesto":30558.36,"margen_real":31752.25,"margen_presupuesto":16548.15,"margen_pct":62.5,"hrs_reales":406.4,"hrs_estimadas":361.7,"personas":8},{"mes":"ENE","codigo":"TWW-TRB-DES-BI-PTS","cliente":"Cliente 19","proyecto":"Anexo Puntos Dobles","clasificacion":"DESARROLLO","venta":36120.7,"ingreso":10836.21,"costo_nomina_real":1150.2,"costo_nomina_estimado":719.94,"oh_real":3330.37,"oh_presupuesto":7167.46,"margen_real":6355.64,"margen_presupuesto":2948.81,"margen_pct":58.7,"hrs_reales":54,"hrs_estimadas":33.8,"personas":1},{"mes":"FEB","codigo":"TWW-TRB-DES-BI-PTS","cliente":"Cliente 19","proyecto":"Anexo Puntos Dobles","clasificacion":"DESARROLLO","venta":36120.7,"ingreso":11919.83,"costo_nomina_real":1150.2,"costo_nomina_estimado":719.94,"oh_real":3492.42,"oh_presupuesto":7167.46,"margen_real":7277.21,"margen_presupuesto":4032.43,"margen_pct":61.1,"hrs_reales":54,"hrs_estimadas":33.8,"personas":1},{"mes":"MZO","codigo":"TWW-TRB-DES-BI-PTS","cliente":"Cliente 19","proyecto":"Anexo Puntos Dobles","clasificacion":"DESARROLLO","venta":36120.7,"ingreso":11919.83,"costo_nomina_real":1150.2,"costo_nomina_estimado":875.43,"oh_real":3492.42,"oh_presupuesto":7167.46,"margen_real":7277.21,"margen_presupuesto":3876.94,"margen_pct":61.1,"hrs_reales":54,"hrs_estimadas":41.1,"personas":1},{"mes":"ENE","codigo":"TWW-TRB-DES-CGM-INFR#656","cliente":"Cliente 20","proyecto":"Infraestructura (CGM)","clasificacion":"DESARROLLO","venta":121506,"ingreso":36451.8,"costo_nomina_real":12453.13,"costo_nomina_estimado":12998.36,"oh_real":11203.01,"oh_presupuesto":24110.55,"margen_real":12795.66,"margen_presupuesto":-657.11,"margen_pct":35.1,"hrs_reales":854.4,"hrs_estimadas":877.3,"personas":20},{"mes":"FEB","codigo":"TWW-TRB-DES-CGM-INFR#656","cliente":"Cliente 20","proyecto":"Infraestructura (CGM)","clasificacion":"DESARROLLO","venta":121506,"ingreso":40096.98,"costo_nomina_real":14282.09,"costo_nomina_estimado":12998.36,"oh_real":11748.11,"oh_presupuesto":24110.55,"margen_real":14066.77,"margen_presupuesto":2988.07,"margen_pct":35.1,"hrs_reales":978.8,"hrs_estimadas":877.3,"personas":20},{"mes":"MZO","codigo":"TWW-TRB-DES-CGM-INFR#656","cliente":"Cliente 20","proyecto":"Infraestructura (CGM)","clasificacion":"DESARROLLO","venta":121506,"ingreso":40096.98,"costo_nomina_real":14640.37,"costo_nomina_estimado":13837.03,"oh_real":11748.11,"oh_presupuesto":24110.55,"margen_real":13708.5,"margen_presupuesto":2149.4,"margen_pct":34.2,"hrs_reales":1005.6,"hrs_estimadas":938.2,"personas":20},{"mes":"ENE","codigo":"TWW-TRB-DES-CGM-WEB2#656","cliente":"Cliente 21","proyecto":"Website complemento (CGM)","clasificacion":"DESARROLLO","venta":423500,"ingreso":127050,"costo_nomina_real":3593.16,"costo_nomina_estimado":3362.07,"oh_real":39047.24,"oh_presupuesto":84035.5,"margen_real":84409.61,"margen_presupuesto":39652.43,"margen_pct":66.4,"hrs_reales":365.6,"hrs_estimadas":317.9,"personas":8},{"mes":"FEB","codigo":"TWW-TRB-DES-CGM-WEB2#656","cliente":"Cliente 21","proyecto":"Website complemento (CGM)","clasificacion":"DESARROLLO","venta":423500,"ingreso":139755,"costo_nomina_real":3940.42,"costo_nomina_estimado":3362.07,"oh_real":40947.17,"oh_presupuesto":84035.5,"margen_real":94867.41,"margen_presupuesto":52357.43,"margen_pct":67.9,"hrs_reales":406,"hrs_estimadas":317.9,"personas":8},{"mes":"MZO","codigo":"TWW-TRB-DES-CGM-WEB2#656","cliente":"Cliente 21","proyecto":"Website complemento (CGM)","clasificacion":"DESARROLLO","venta":423500,"ingreso":139755,"costo_nomina_real":4177.87,"costo_nomina_estimado":3713.49,"oh_real":40947.17,"oh_presupuesto":84035.5,"margen_real":94629.97,"margen_presupuesto":52006.01,"margen_pct":67.7,"hrs_reales":406.4,"hrs_estimadas":361.7,"personas":8},{"mes":"ENE","codigo":"TWW-TRB-DES-DIA-WEB#644","cliente":"Cliente 22","proyecto":"Desarrollo Web Fase1","clasificacion":"DESARROLLO","venta":762300,"ingreso":228690,"costo_nomina_real":3158.68,"costo_nomina_estimado":3000.62,"oh_real":70285.03,"oh_presupuesto":151263.9,"margen_real":155246.29,"margen_presupuesto":74425.48,"margen_pct":67.9,"hrs_reales":311.6,"hrs_estimadas":284.9,"personas":7},{"mes":"FEB","codigo":"TWW-TRB-DES-DIA-WEB#644","cliente":"Cliente 22","proyecto":"Desarrollo Web Fase1","clasificacion":"DESARROLLO","venta":762300,"ingreso":251559,"costo_nomina_real":3961.44,"costo_nomina_estimado":3000.62,"oh_real":73704.9,"oh_presupuesto":151263.9,"margen_real":173892.66,"margen_presupuesto":97294.48,"margen_pct":69.1,"hrs_reales":361.8,"hrs_estimadas":284.9,"personas":7},{"mes":"MZO","codigo":"TWW-TRB-DES-DIA-WEB#644","cliente":"Cliente 22","proyecto":"Desarrollo Web Fase1","clasificacion":"DESARROLLO","venta":762300,"ingreso":251559,"costo_nomina_real":3518.3,"costo_nomina_estimado":3354.74,"oh_real":73704.9,"oh_presupuesto":151263.9,"margen_real":174335.8,"margen_presupuesto":96940.36,"margen_pct":69.3,"hrs_reales":352.4,"hrs_estimadas":321.4,"personas":7},{"mes":"ENE","codigo":"TWW-TRB-DES-DIA-INFR#644","cliente":"Cliente 23","proyecto":"Infraestructura (DIA)","clasificacion":"DESARROLLO","venta":86240,"ingreso":25872,"costo_nomina_real":3901.49,"costo_nomina_estimado":3240.42,"oh_real":7951.44,"oh_presupuesto":17112.68,"margen_real":14019.07,"margen_presupuesto":5518.9,"margen_pct":54.2,"hrs_reales":311.6,"hrs_estimadas":285.6,"personas":7},{"mes":"FEB","codigo":"TWW-TRB-DES-DIA-INFR#644","cliente":"Cliente 23","proyecto":"Infraestructura (DIA)","clasificacion":"DESARROLLO","venta":86240,"ingreso":28459.2,"costo_nomina_real":4474.98,"costo_nomina_estimado":3240.42,"oh_real":8338.33,"oh_presupuesto":17112.68,"margen_real":15645.89,"margen_presupuesto":8106.1,"margen_pct":55,"hrs_reales":378,"hrs_estimadas":285.6,"personas":7},{"mes":"MZO","codigo":"TWW-TRB-DES-DIA-INFR#644","cliente":"Cliente 23","proyecto":"Infraestructura (DIA)","clasificacion":"DESARROLLO","venta":86240,"ingreso":28459.2,"costo_nomina_real":4194.53,"costo_nomina_estimado":3693.24,"oh_real":8338.33,"oh_presupuesto":17112.68,"margen_real":15926.34,"margen_presupuesto":7653.28,"margen_pct":56,"hrs_reales":352.4,"hrs_estimadas":322.1,"personas":7},{"mes":"ENE","codigo":"TWW-TRB-MEJ-CEL-MF#28","cliente":"Cliente 24","proyecto":"Mejoras finales","clasificacion":"MEJORA","venta":75460,"ingreso":22638,"costo_nomina_real":4342.38,"costo_nomina_estimado":3732.9,"oh_real":6957.51,"oh_presupuesto":14973.6,"margen_real":11338.11,"margen_presupuesto":3931.5,"margen_pct":50.1,"hrs_reales":311.6,"hrs_estimadas":286.3,"personas":7},{"mes":"FEB","codigo":"TWW-TRB-MEJ-CEL-MF#28","cliente":"Cliente 24","proyecto":"Mejoras finales","clasificacion":"MEJORA","venta":75460,"ingreso":24901.8,"costo_nomina_real":5080.32,"costo_nomina_estimado":3732.9,"oh_real":7296.04,"oh_presupuesto":14973.6,"margen_real":12525.44,"margen_presupuesto":6195.3,"margen_pct":50.3,"hrs_reales":378,"hrs_estimadas":286.3,"personas":7},{"mes":"MZO","codigo":"TWW-TRB-MEJ-CEL-MF#28","cliente":"Cliente 24","proyecto":"Mejoras finales","clasificacion":"MEJORA","venta":75460,"ingreso":24901.8,"costo_nomina_real":4864.38,"costo_nomina_estimado":4306.76,"oh_real":7296.04,"oh_presupuesto":14973.6,"margen_real":12741.38,"margen_presupuesto":5621.45,"margen_pct":51.2,"hrs_reales":352.4,"hrs_estimadas":322.8,"personas":7},{"mes":"ENE","codigo":"TWW-TRB-DES-AT&T-UXUI#620","cliente":"Cliente 25","proyecto":"UX/UI UNEFON","clasificacion":"DESARROLLO","venta":215600,"ingreso":64680,"costo_nomina_real":4915.29,"costo_nomina_estimado":3986.39,"oh_real":19878.59,"oh_presupuesto":42781.71,"margen_real":39886.12,"margen_presupuesto":17911.9,"margen_pct":61.7,"hrs_reales":311.6,"hrs_estimadas":287,"personas":7},{"mes":"FEB","codigo":"TWW-TRB-DES-AT&T-UXUI#620","cliente":"Cliente 25","proyecto":"UX/UI UNEFON","clasificacion":"DESARROLLO","venta":215600,"ingreso":71148,"costo_nomina_real":5599.26,"costo_nomina_estimado":3986.39,"oh_real":20845.83,"oh_presupuesto":42781.71,"margen_real":44702.91,"margen_presupuesto":24379.9,"margen_pct":62.8,"hrs_reales":378,"hrs_estimadas":287,"personas":7},{"mes":"MZO","codigo":"TWW-TRB-DES-AT&T-UXUI#620","cliente":"Cliente 25","proyecto":"UX/UI UNEFON","clasificacion":"DESARROLLO","venta":215600,"ingreso":71148,"costo_nomina_real":5317.28,"costo_nomina_estimado":4655.22,"oh_real":20845.83,"oh_presupuesto":42781.71,"margen_real":44984.89,"margen_presupuesto":23711.08,"margen_pct":63.2,"hrs_reales":352.4,"hrs_estimadas":323.5,"personas":7},{"mes":"ENE","codigo":"TWW-TRB-DES-SYN-WEB#625","cliente":"Cliente 26","proyecto":"Desarrollo Sitio Web","clasificacion":"DESARROLLO","venta":50568.98,"ingreso":25284.49,"costo_nomina_real":4083.38,"costo_nomina_estimado":3481.82,"oh_real":4662.52,"oh_presupuesto":10034.45,"margen_real":16538.59,"margen_presupuesto":11768.23,"margen_pct":65.4,"hrs_reales":311.6,"hrs_estimadas":287.7,"personas":7},{"mes":"FEB","codigo":"TWW-TRB-DES-SYN-WEB#625","cliente":"Cliente 26","proyecto":"Desarrollo Sitio Web","clasificacion":"DESARROLLO","venta":50568.98,"ingreso":27812.94,"costo_nomina_real":4806.54,"costo_nomina_estimado":3481.82,"oh_real":4889.39,"oh_presupuesto":10034.45,"margen_real":18117.01,"margen_presupuesto":14296.67,"margen_pct":65.1,"hrs_reales":378,"hrs_estimadas":287.7,"personas":7},{"mes":"MZO","codigo":"TWW-TRB-DES-SYN-WEB#625","cliente":"Cliente 26","proyecto":"Desarrollo Sitio Web","clasificacion":"DESARROLLO","venta":50568.98,"ingreso":27812.94,"costo_nomina_real":4119.62,"costo_nomina_estimado":4041.43,"oh_real":4889.39,"oh_presupuesto":10034.45,"margen_real":18803.93,"margen_presupuesto":13737.06,"margen_pct":67.6,"hrs_reales":339.2,"hrs_estimadas":324.2,"personas":7},{"mes":"ENE","codigo":"TWW-TRB-DES-BI-AEJ#410","cliente":"Cliente 27","proyecto":"Asistente Ejecutivo","clasificacion":"DESARROLLO","venta":170108.4,"ingreso":0,"costo_nomina_real":3516.78,"costo_nomina_estimado":2987.47,"oh_real":15684.21,"oh_presupuesto":33754.77,"margen_real":-19200.99,"margen_presupuesto":-36742.24,"margen_pct":null,"hrs_reales":311.6,"hrs_estimadas":288.4,"personas":7},{"mes":"FEB","codigo":"TWW-TRB-DES-BI-AEJ#410","cliente":"Cliente 27","proyecto":"Asistente Ejecutivo","clasificacion":"DESARROLLO","venta":170108.4,"ingreso":0,"costo_nomina_real":4120.2,"costo_nomina_estimado":2987.47,"oh_real":16447.36,"oh_presupuesto":33754.77,"margen_real":-20567.56,"margen_presupuesto":-36742.24,"margen_pct":null,"hrs_reales":364,"hrs_estimadas":288.4,"personas":7},{"mes":"MZO","codigo":"TWW-TRB-DES-BI-AEJ#410","cliente":"Cliente 27","proyecto":"Asistente Ejecutivo","clasificacion":"DESARROLLO","venta":170108.4,"ingreso":0,"costo_nomina_real":3687.54,"costo_nomina_estimado":3357.84,"oh_real":16447.36,"oh_presupuesto":33754.77,"margen_real":-20134.9,"margen_presupuesto":-37112.6,"margen_pct":null,"hrs_reales":335,"hrs_estimadas":312.8,"personas":7},{"mes":"ENE","codigo":"TWW-TRB-DES-PPB-LAND#833","cliente":"Cliente 28","proyecto":"Landing Precios (PPB)","clasificacion":"DESARROLLO","venta":592900,"ingreso":0,"costo_nomina_real":3404.42,"costo_nomina_estimado":2930.36,"oh_real":54666.13,"oh_presupuesto":117649.7,"margen_real":-58070.56,"margen_presupuesto":-120580.05,"margen_pct":null,"hrs_reales":311.6,"hrs_estimadas":289.1,"personas":7},{"mes":"FEB","codigo":"TWW-TRB-DES-PPB-LAND#833","cliente":"Cliente 28","proyecto":"Landing Precios (PPB)","clasificacion":"DESARROLLO","venta":592900,"ingreso":0,"costo_nomina_real":3887.76,"costo_nomina_estimado":2930.36,"oh_real":57326.03,"oh_presupuesto":117649.7,"margen_real":-61213.79,"margen_presupuesto":-120580.05,"margen_pct":null,"hrs_reales":364,"hrs_estimadas":289.1,"personas":7},{"mes":"MZO","codigo":"TWW-TRB-DES-PPB-LAND#833","cliente":"Cliente 28","proyecto":"Landing Precios (PPB)","clasificacion":"DESARROLLO","venta":592900,"ingreso":0,"costo_nomina_real":3484.03,"costo_nomina_estimado":3125.68,"oh_real":57326.03,"oh_presupuesto":117649.7,"margen_real":-60810.06,"margen_presupuesto":-120775.38,"margen_pct":null,"hrs_reales":351.2,"hrs_estimadas":313.5,"personas":7},{"mes":"ENE","codigo":"TWW-TRB-DES-PP-LAND#833","cliente":"Cliente 29","proyecto":"Landing Expectativa (PP)","clasificacion":"DESARROLLO","venta":1067220,"ingreso":0,"costo_nomina_real":9383.54,"costo_nomina_estimado":9652,"oh_real":98399.04,"oh_presupuesto":211769.45,"margen_real":-107782.58,"margen_presupuesto":-221421.45,"margen_pct":null,"hrs_reales":850.4,"hrs_estimadas":877.1,"personas":20},{"mes":"FEB","codigo":"TWW-TRB-DES-PP-LAND#833","cliente":"Cliente 29","proyecto":"Landing Expectativa (PP)","clasificacion":"DESARROLLO","venta":1067220,"ingreso":0,"costo_nomina_real":10240.83,"costo_nomina_estimado":9652,"oh_real":103186.86,"oh_presupuesto":211769.45,"margen_real":-113427.69,"margen_presupuesto":-221421.45,"margen_pct":null,"hrs_reales":948,"hrs_estimadas":877.1,"personas":20},{"mes":"MZO","codigo":"TWW-TRB-DES-PP-LAND#833","cliente":"Cliente 29","proyecto":"Landing Expectativa (PP)","clasificacion":"DESARROLLO","venta":1067220,"ingreso":0,"costo_nomina_real":10600.67,"costo_nomina_estimado":10140.68,"oh_real":103186.86,"oh_presupuesto":211769.45,"margen_real":-113787.53,"margen_presupuesto":-221910.14,"margen_pct":null,"hrs_reales":1000.8,"hrs_estimadas":933.2,"personas":20},{"mes":"ENE","codigo":"TWW-TRB-DES-PP-INFR#833","cliente":"Cliente 30","proyecto":"Infraestructura PP Boutique","clasificacion":"DESARROLLO","venta":120736,"ingreso":0,"costo_nomina_real":12387.69,"costo_nomina_estimado":13249.03,"oh_real":11132.01,"oh_presupuesto":23957.76,"margen_real":-23519.7,"margen_presupuesto":-37206.79,"margen_pct":null,"hrs_reales":976.8,"hrs_estimadas":1017.4,"personas":23},{"mes":"FEB","codigo":"TWW-TRB-DES-PP-INFR#833","cliente":"Cliente 30","proyecto":"Infraestructura PP Boutique","clasificacion":"DESARROLLO","venta":120736,"ingreso":0,"costo_nomina_real":14583.11,"costo_nomina_estimado":13249.03,"oh_real":11673.66,"oh_presupuesto":23957.76,"margen_real":-26256.78,"margen_presupuesto":-37206.79,"margen_pct":null,"hrs_reales":1103.6,"hrs_estimadas":1017.4,"personas":23},{"mes":"MZO","codigo":"TWW-TRB-DES-PP-INFR#833","cliente":"Cliente 30","proyecto":"Infraestructura PP Boutique","clasificacion":"DESARROLLO","venta":120736,"ingreso":0,"costo_nomina_real":14937.7,"costo_nomina_estimado":14416.17,"oh_real":11673.66,"oh_presupuesto":23957.76,"margen_real":-26611.37,"margen_presupuesto":-38373.92,"margen_pct":null,"hrs_reales":1146.6,"hrs_estimadas":1080.8,"personas":23},{"mes":"ENE","codigo":"TWW-TRB-DES-PPB-WEB#833","cliente":"Cliente 31","proyecto":"Website (PPB)","clasificacion":"DESARROLLO","venta":105644,"ingreso":52822,"costo_nomina_real":11663.57,"costo_nomina_estimado":12212.36,"oh_real":9740.51,"oh_presupuesto":20963.04,"margen_real":31417.92,"margen_presupuesto":19646.6,"margen_pct":59.5,"hrs_reales":962.8,"hrs_estimadas":1019.7,"personas":23},{"mes":"FEB","codigo":"TWW-TRB-DES-PPB-WEB#833","cliente":"Cliente 31","proyecto":"Website (PPB)","clasificacion":"DESARROLLO","venta":105644,"ingreso":58104.2,"costo_nomina_real":13700.89,"costo_nomina_estimado":12212.36,"oh_real":10214.46,"oh_presupuesto":20963.04,"margen_real":34188.85,"margen_presupuesto":24928.8,"margen_pct":58.8,"hrs_reales":1136,"hrs_estimadas":1019.7,"personas":23},{"mes":"MZO","codigo":"TWW-TRB-DES-PPB-WEB#833","cliente":"Cliente 31","proyecto":"Website (PPB)","clasificacion":"DESARROLLO","venta":105644,"ingreso":58104.2,"costo_nomina_real":13432.92,"costo_nomina_estimado":12876.31,"oh_real":10214.46,"oh_presupuesto":20963.04,"margen_real":34456.82,"margen_presupuesto":24264.85,"margen_pct":59.3,"hrs_reales":1136.8,"hrs_estimadas":1075.8,"personas":23},{"mes":"ENE","codigo":"TWW-TRB-DES-AT&TM-UXUI#620","cliente":"Cliente 32","proyecto":"UX/UI Personas + Negocios","clasificacion":"DESARROLLO","venta":301840,"ingreso":150920,"costo_nomina_real":11048.78,"costo_nomina_estimado":11519.4,"oh_real":27830.03,"oh_presupuesto":59894.39,"margen_real":112041.19,"margen_presupuesto":79506.21,"margen_pct":74.2,"hrs_reales":966.8,"hrs_estimadas":1022,"personas":23},{"mes":"FEB","codigo":"TWW-TRB-DES-AT&TM-UXUI#620","cliente":"Cliente 32","proyecto":"UX/UI Personas + Negocios","clasificacion":"DESARROLLO","venta":301840,"ingreso":166012,"costo_nomina_real":12736.92,"costo_nomina_estimado":11519.4,"oh_real":29184.16,"oh_presupuesto":59894.39,"margen_real":124090.92,"margen_presupuesto":94598.21,"margen_pct":74.7,"hrs_reales":1114,"hrs_estimadas":1022,"personas":23},{"mes":"MZO","codigo":"TWW-TRB-DES-AT&TM-UXUI#620","cliente":"Cliente 32","proyecto":"UX/UI Personas + Negocios","clasificacion":"DESARROLLO","venta":301840,"ingreso":166012,"costo_nomina_real":12531.61,"costo_nomina_estimado":12197.26,"oh_real":29184.16,"oh_presupuesto":59894.39,"margen_real":124296.23,"margen_presupuesto":93920.35,"margen_pct":74.9,"hrs_reales":1120.6,"hrs_estimadas":1078.1,"personas":23},{"mes":"ENE","codigo":"TWW-TRB-DES-FOTO-WEB#667","cliente":"Cliente 33","proyecto":"Website (FOTO)","clasificacion":"DESARROLLO","venta":55625.88,"ingreso":27812.94,"costo_nomina_real":13894.82,"costo_nomina_estimado":14866.33,"oh_real":5128.78,"oh_presupuesto":11037.89,"margen_real":8789.35,"margen_presupuesto":1908.72,"margen_pct":31.6,"hrs_reales":964,"hrs_estimadas":1024.3,"personas":23},{"mes":"FEB","codigo":"TWW-TRB-DES-FOTO-WEB#667","cliente":"Cliente 33","proyecto":"Website (FOTO)","clasificacion":"DESARROLLO","venta":55625.88,"ingreso":30594.23,"costo_nomina_real":16071.03,"costo_nomina_estimado":14866.33,"oh_real":5378.33,"oh_presupuesto":11037.89,"margen_real":9144.87,"margen_presupuesto":4690.01,"margen_pct":29.9,"hrs_reales":1111,"hrs_estimadas":1024.3,"personas":23},{"mes":"MZO","codigo":"TWW-TRB-DES-FOTO-WEB#667","cliente":"Cliente 33","proyecto":"Website (FOTO)","clasificacion":"DESARROLLO","venta":55625.88,"ingreso":30594.23,"costo_nomina_real":16455.44,"costo_nomina_estimado":15411.09,"oh_real":5378.33,"oh_presupuesto":11037.89,"margen_real":8760.47,"margen_presupuesto":4145.25,"margen_pct":28.6,"hrs_reales":1150.6,"hrs_estimadas":1080.4,"personas":23}];
+
+const OH_CATS={"GENTE ADMINISTRATIVA":{"ENE":268250,"FEB":268250,"MZO":268250},"INDIRECTOS GENTE":{"ENE":48091.13,"FEB":73803.59,"MZO":73803.59},"SUSCRIPCIONES IT":{"ENE":225578.24,"FEB":217598.85,"MZO":217598.85},"CONSULTORIAS Y SERVICIOS":{"ENE":76331.25,"FEB":76378.57,"MZO":76378.57},"GENERALES Y OFICINA":{"ENE":7694.06,"FEB":21785.43,"MZO":21785.43},"RENTA":{"ENE":11528.89,"FEB":11528.89,"MZO":11528.89},"DEPRECIACION":{"ENE":17553.34,"FEB":17553.34,"MZO":17553.34}};
+const OH_REAL={"ENE":655026.91,"FEB":686898.67,"MZO":686898.67};
+const OH_PPTO=1409715.9;
+const TOTAL_VENTA=7104315.46;
+
+let currentMes='ENE';
+let currentTab='resumen';
+let sortK='margen_real';let sortD=-1;
+const charts={};
+
+const fmt=v=>new Intl.NumberFormat('es-GT',{minimumFractionDigits:0,maximumFractionDigits:0}).format(v);
+const fmtM=v=>(v>=1000000?'Q'+(v/1000000).toFixed(1)+'M':v>=1000?'Q'+(v/1000).toFixed(0)+'K':'Q'+fmt(v));
+const fmtPct=v=>v===null||v===undefined?'—':v.toFixed(1)+'%';
+const clr=v=>v>=70?'var(--green)':v>=50?'var(--amber)':v>=0?'#f97316':'var(--red)';
+const badge=v=>v===null?'<span class="badge badge-amber">Sin Ingreso</span>':v>=70?'<span class="badge badge-green">'+v.toFixed(1)+'%</span>':v>=40?'<span class="badge badge-amber">'+v.toFixed(1)+'%</span>':'<span class="badge badge-red">'+v.toFixed(1)+'%</span>';
+const pbar=(v,mx,color)=>`<div class="pbar-wrap" style="width:80px"><div class="pbar" style="width:${Math.min(100,Math.abs(v)/mx*100)}%;background:${color}"></div></div>`;
+
+function getData(){return currentMes==='TODOS'?PL:PL.filter(r=>r.mes===currentMes);}
+
+function sum(arr,k){return arr.reduce((a,r)=>a+(r[k]||0),0);}
+
+function setMes(m){
+  currentMes=m;
+  document.querySelectorAll('.btn-mes').forEach(b=>b.classList.toggle('active',b.textContent===m));
+  render();
+}
+function setTab(t){
+  currentTab=t;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes("'"+t+"'")));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+t).classList.add('active');
+  render();
+}
+
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function mkChart(id,cfg){
+  destroyChart(id);
+  const el=document.getElementById(id);
+  if(!el)return;
+  charts[id]=new Chart(el,cfg);
+}
+
+function renderKPIs(){
+  const d=getData();
+  const ing=sum(d,'ingreso'),cost=sum(d,'costo_nomina_real'),oh=sum(d,'oh_real'),mar=sum(d,'margen_real');
+  const marPct=ing>0?mar/ing*100:0;
+  const proy=new Set(d.map(r=>r.codigo)).size;
+  const sfx=currentMes==='TODOS'?' (Q1)':'';
+  document.getElementById('kpis').innerHTML=`
+  <div class="kpi kpi-blue"><div class="kpi-label">Ingresos Facturados${sfx}</div><div class="kpi-val">${fmtM(ing)}</div><div class="kpi-sub">Presupuesto total: ${fmtM(TOTAL_VENTA)}</div></div>
+  <div class="kpi kpi-amber"><div class="kpi-label">Costo Nómina Real${sfx}</div><div class="kpi-val">${fmtM(cost)}</div><div class="kpi-sub">vs OH: ${fmtM(oh)}</div></div>
+  <div class="kpi"><div class="kpi-label">Overhead Cargado${sfx}</div><div class="kpi-val" style="color:var(--purple)">${fmtM(oh)}</div><div class="kpi-sub">Ppto mensual: ${fmtM(OH_PPTO)}</div></div>
+  <div class="kpi ${mar>=0?'kpi-green':'kpi-red'}"><div class="kpi-label">Margen Neto${sfx}</div><div class="kpi-val">${fmtM(mar)}</div><div class="kpi-sub" style="color:${clr(marPct)}">${fmtPct(marPct)} del ingreso</div></div>
+  <div class="kpi kpi-teal"><div class="kpi-label">Proyectos Activos${sfx}</div><div class="kpi-val">${proy}</div><div class="kpi-sub">${d.filter(r=>r.margen_real<0).length} con margen negativo</div></div>`;
+}
+
+function renderResumen(){
+  const d=getData();
+  const meses=['ENE','FEB','MZO'];
+  const byMes=meses.map(m=>PL.filter(r=>r.mes===m));
+  const neg=d.filter(r=>r.margen_real<0);
+  let html='';
+  if(neg.length>0){
+    html+=`<div class="alert-box">⚠ ${neg.length} proyecto(s) con margen negativo en ${currentMes==='TODOS'?'Q1':currentMes}: ${neg.map(r=>r.proyecto).join(', ')}</div>`;
+  }
+  html+=`<div class="grid2">
+  <div class="section"><div class="section-title">P&L Mensual — Ingresos vs Costos</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:11px">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#3b82f6;border-radius:2px"></span>Ingresos</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#a78bfa;border-radius:2px"></span>Overhead</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#f59e0b;border-radius:2px"></span>Nómina</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#10b981;border-radius:2px"></span>Margen</span>
+    </div>
+    <div class="chart-wrap" style="height:240px"><canvas id="ch-monthly"></canvas></div>
+  </div>
+  <div class="section"><div class="section-title">Distribución de Costos (${currentMes==='TODOS'?'Q1':currentMes})</div>
+    <div class="chart-wrap" style="height:240px"><canvas id="ch-pie"></canvas></div>
+  </div></div>
+  <div class="section"><div class="section-title">Resumen P&L por Mes</div>
+  <table><thead><tr><th>Mes</th><th>Ingresos</th><th>Costo Nómina</th><th>Overhead</th><th>Margen Neto</th><th>Margen %</th><th>Proyectos</th></tr></thead><tbody>`;
+  meses.forEach(m=>{
+    const md=PL.filter(r=>r.mes===m);
+    const ing=sum(md,'ingreso'),cost=sum(md,'costo_nomina_real'),oh=sum(md,'oh_real'),mar=sum(md,'margen_real');
+    const pct=ing>0?mar/ing*100:0;
+    html+=`<tr><td style="font-weight:600">${m} 2026</td><td style="color:var(--blue)">Q${fmt(ing)}</td><td style="color:var(--amber)">Q${fmt(cost)}</td><td style="color:var(--purple)">Q${fmt(oh)}</td><td style="color:${mar>=0?'var(--green)':'var(--red)'};font-weight:600">Q${fmt(mar)}</td><td>${badge(pct)}</td><td>${new Set(md.map(r=>r.codigo)).size}</td></tr>`;
+  });
+  const tod=PL;const ting=sum(tod,'ingreso'),tcost=sum(tod,'costo_nomina_real'),toh=sum(tod,'oh_real'),tmar=sum(tod,'margen_real');
+  html+=`<tr style="font-weight:600;border-top:1px solid var(--border)"><td>TOTAL Q1</td><td style="color:var(--blue)">Q${fmt(ting)}</td><td style="color:var(--amber)">Q${fmt(tcost)}</td><td style="color:var(--purple)">Q${fmt(toh)}</td><td style="color:${tmar>=0?'var(--green)':'var(--red)'}">Q${fmt(tmar)}</td><td>${badge(ting>0?tmar/ting*100:0)}</td><td>33</td></tr>`;
+  html+=`</tbody></table></div>`;
+  document.getElementById('panel-resumen').innerHTML=html;
+  const mD=meses.map(m=>PL.filter(r=>r.mes===m));
+  mkChart('ch-monthly',{type:'bar',data:{labels:['Enero','Febrero','Marzo'],datasets:[
+    {label:'Ingresos',data:mD.map(d=>sum(d,'ingreso')),backgroundColor:'rgba(59,130,246,.7)'},
+    {label:'Overhead',data:mD.map(d=>sum(d,'oh_real')),backgroundColor:'rgba(167,139,250,.7)'},
+    {label:'Nómina',data:mD.map(d=>sum(d,'costo_nomina_real')),backgroundColor:'rgba(245,158,11,.7)'},
+    {label:'Margen',data:mD.map(d=>sum(d,'margen_real')),backgroundColor:mD.map(d=>sum(d,'margen_real')>=0?'rgba(16,185,129,.7)':'rgba(239,68,68,.7)'),type:'bar'}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtM(v)},grid:{color:'rgba(255,255,255,.05)'}}}}});
+  const sel=getData();
+  const totalCost=sum(sel,'costo_nomina_real')+sum(sel,'oh_real');
+  mkChart('ch-pie',{type:'doughnut',data:{labels:['Overhead','Nómina Real','Margen'],datasets:[{data:[sum(sel,'oh_real'),sum(sel,'costo_nomina_real'),Math.max(0,sum(sel,'margen_real'))],backgroundColor:['rgba(167,139,250,.8)','rgba(245,158,11,.8)','rgba(16,185,129,.8)'],borderColor:'#1e293b',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',boxWidth:12,font:{size:11}}}}}});
+}
+
+function renderProyectos(){
+  const d=getData();
+  const sorted=[...d].sort((a,b)=>sortD*(a[sortK]||0)>(sortD*(b[sortK]||0))?-1:1);
+  let html=`<div class="note">💡 Proyectos con <strong>ingreso cero</strong> generan pérdida pura por overhead + nómina. Se recomienda validar fecha de facturación o activar cobro.</div>
+  <div class="section"><div class="section-title">Detalle P&L por Proyecto — ${currentMes==='TODOS'?'Q1 2026':currentMes+' 2026'}</div>
+  <div class="tbl-container"><table><thead><tr>
+    <th onclick="sortBy('codigo')">CeCo / Código</th>
+    <th onclick="sortBy('proyecto')">Proyecto</th>
+    <th onclick="sortBy('cliente')">Cliente</th>
+    <th onclick="sortBy('venta')">Presupuesto</th>
+    <th onclick="sortBy('ingreso')">Ingreso Real</th>
+    <th onclick="sortBy('costo_nomina_real')">Costo Nómina</th>
+    <th onclick="sortBy('oh_real')">Overhead</th>
+    <th onclick="sortBy('margen_real')">Margen</th>
+    <th onclick="sortBy('margen_pct')">Margen %</th>
+    <th onclick="sortBy('personas')">Personas</th>
+  </tr></thead><tbody>`;
+  sorted.forEach(r=>{
+    const semaforo=r.ingreso===0?'🔴':r.margen_real<0?'🔴':r.margen_pct>=70?'🟢':r.margen_pct>=40?'🟡':'🟠';
+    html+=`<tr>
+      <td><span class="code">${r.codigo}</span></td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.proyecto}">${semaforo} ${r.proyecto}</td>
+      <td><span class="tag">${r.cliente}</span></td>
+      <td style="color:var(--muted)">Q${fmt(r.venta)}</td>
+      <td style="color:${r.ingreso>0?'var(--blue)':'var(--red)'};font-weight:500">Q${fmt(r.ingreso)}</td>
+      <td style="color:var(--amber)">Q${fmt(r.costo_nomina_real)}</td>
+      <td style="color:var(--purple)">Q${fmt(r.oh_real)}</td>
+      <td style="color:${r.margen_real>=0?'var(--green)':'var(--red)'};font-weight:600">Q${fmt(r.margen_real)}</td>
+      <td>${badge(r.margen_pct)}</td>
+      <td style="text-align:center">${r.personas}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  document.getElementById('panel-proyectos').innerHTML=html;
+}
+
+function sortBy(k){sortK=k;sortD*=-1;renderProyectos();}
+
+function renderClientes(){
+  const d=getData();
+  const byCliente={};
+  d.forEach(r=>{
+    if(!byCliente[r.cliente])byCliente[r.cliente]={cliente:r.cliente,ingresos:0,costo_nomina:0,oh:0,margen:0,proyectos:new Set()};
+    byCliente[r.cliente].ingresos+=r.ingreso;
+    byCliente[r.cliente].costo_nomina+=r.costo_nomina_real;
+    byCliente[r.cliente].oh+=r.oh_real;
+    byCliente[r.cliente].margen+=r.margen_real;
+    byCliente[r.cliente].proyectos.add(r.proyecto);
+  });
+  const clientes=Object.values(byCliente).sort((a,b)=>b.margen-a.margen);
+  const top10=clientes.slice(0,10);
+  let html=`<div class="grid2">
+  <div class="section"><div class="section-title">Top 10 Clientes — Margen (${currentMes==='TODOS'?'Q1':currentMes})</div>
+    <div class="chart-wrap" style="height:${top10.length*38+60}px"><canvas id="ch-clientes"></canvas></div>
+  </div>
+  <div class="section"><div class="section-title">Rentabilidad por Cliente</div>
+  <div class="tbl-container"><table><thead><tr><th>Cliente</th><th>Ingresos</th><th>Nómina</th><th>Overhead</th><th>Margen</th><th>Margen %</th><th>Proyectos</th></tr></thead><tbody>`;
+  clientes.forEach(c=>{
+    const pct=c.ingresos>0?c.margen/c.ingresos*100:null;
+    html+=`<tr><td style="font-weight:500">${c.cliente}</td><td style="color:var(--blue)">Q${fmt(c.ingresos)}</td><td style="color:var(--amber)">Q${fmt(c.costo_nomina)}</td><td style="color:var(--purple)">Q${fmt(c.oh)}</td><td style="color:${c.margen>=0?'var(--green)':'var(--red)'};font-weight:600">Q${fmt(c.margen)}</td><td>${badge(pct)}</td><td style="text-align:center">${c.proyectos.size}</td></tr>`;
+  });
+  html+=`</tbody></table></div></div></div>`;
+  document.getElementById('panel-clientes').innerHTML=html;
+  mkChart('ch-clientes',{type:'bar',data:{labels:top10.map(c=>c.cliente),datasets:[{data:top10.map(c=>c.margen),backgroundColor:top10.map(c=>c.margen>=0?'rgba(16,185,129,.7)':'rgba(239,68,68,.7)'),borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtM(v)},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}}}});
+}
+
+function renderOverhead(){
+  const cats=Object.keys(OH_CATS);
+  const meses=['ENE','FEB','MZO'];
+  let html=`<div class="note">📌 El Overhead se distribuye a cada proyecto según su <strong>% de participación en Venta total</strong>. Si entran nuevos proyectos, el % se redistribuye y cada proyecto existente absorbe <em>menos</em> carga administrativa.</div>
+  <div class="grid2">
+  <div class="section"><div class="section-title">Overhead Real vs Presupuesto — Mensual</div>
+    <div style="display:flex;gap:12px;margin-bottom:12px;font-size:11px">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px"></span>Real</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:rgba(239,68,68,.3);border-radius:2px"></span>Presupuesto mensual</span>
+    </div>
+    <div class="chart-wrap" style="height:240px"><canvas id="ch-oh-line"></canvas></div>
+  </div>
+  <div class="section"><div class="section-title">Composición Overhead — ${currentMes==='TODOS'?'Promedio Q1':currentMes}</div>
+    <div class="chart-wrap" style="height:240px"><canvas id="ch-oh-pie"></canvas></div>
+  </div></div>
+  <div class="section"><div class="section-title">Detalle Overhead Real por Categoría</div>
+  <table><thead><tr><th>Categoría</th><th>ENE 2026</th><th>FEB 2026</th><th>MZO 2026</th><th>Total Q1</th><th>Participación</th></tr></thead><tbody>`;
+  const totalQ1=Object.values(OH_CATS).reduce((a,v)=>a+v.ENE+v.FEB+v.MZO,0);
+  cats.forEach(cat=>{
+    const v=OH_CATS[cat];const tot=v.ENE+v.FEB+v.MZO;const pct=tot/totalQ1*100;
+    html+=`<tr><td style="font-weight:500">${cat}</td><td>Q${fmt(v.ENE)}</td><td>Q${fmt(v.FEB)}</td><td>Q${fmt(v.MZO)}</td><td style="font-weight:600">Q${fmt(tot)}</td><td>${pbar(pct,50,'#a78bfa')} ${pct.toFixed(1)}%</td></tr>`;
+  });
+  const tot={ENE:OH_REAL.ENE,FEB:OH_REAL.FEB,MZO:OH_REAL.MZO};
+  html+=`<tr style="font-weight:600;border-top:1px solid var(--border)"><td>TOTAL OVERHEAD</td><td style="color:var(--red)">Q${fmt(tot.ENE)}</td><td style="color:var(--red)">Q${fmt(tot.FEB)}</td><td style="color:var(--red)">Q${fmt(tot.MZO)}</td><td style="color:var(--red)">Q${fmt(tot.ENE+tot.FEB+tot.MZO)}</td><td>100%</td></tr>`;
+  html+=`</tbody></table></div>`;
+  document.getElementById('panel-overhead').innerHTML=html;
+  mkChart('ch-oh-line',{type:'bar',data:{labels:['Enero','Febrero','Marzo'],datasets:[
+    {label:'Real',data:[OH_REAL.ENE,OH_REAL.FEB,OH_REAL.MZO],backgroundColor:'rgba(239,68,68,.7)',borderRadius:4},
+    {label:'Presupuesto',data:[OH_PPTO,OH_PPTO,OH_PPTO],type:'line',borderColor:'rgba(239,68,68,.4)',backgroundColor:'transparent',pointBackgroundColor:'rgba(239,68,68,.4)',borderDash:[4,4]}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtM(v)},grid:{color:'rgba(255,255,255,.05)'}}}}});
+  const selMes=currentMes==='TODOS'?'ENE':currentMes;
+  mkChart('ch-oh-pie',{type:'doughnut',data:{labels:cats,datasets:[{data:cats.map(c=>OH_CATS[c][selMes]),backgroundColor:['rgba(59,130,246,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(167,139,250,.8)','rgba(20,184,166,.8)','rgba(249,115,22,.8)'],borderColor:'#1e293b',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',boxWidth:10,font:{size:10}}}}}});
+}
+
+function renderHoras(){
+  const d=getData();
+  const sorted=[...d].sort((a,b)=>b.hrs_reales-a.hrs_reales).slice(0,15);
+  let html=`<div class="note">📊 Las <strong>Horas Estimadas</strong> representan el presupuesto de tiempo. Las <strong>Horas Reales</strong> impactan directamente el costo de nómina. Desviaciones &gt;20% requieren análisis.</div>
+  <div class="section"><div class="section-title">Top 15 Proyectos por Horas Reales — ${currentMes==='TODOS'?'Q1':currentMes}</div>
+    <div class="chart-wrap" style="height:${sorted.length*38+60}px"><canvas id="ch-horas"></canvas></div>
+  </div>
+  <div class="section"><div class="section-title">Detalle Horas por Proyecto</div>
+  <div class="tbl-container"><table><thead><tr><th>CeCo</th><th>Proyecto</th><th>Hrs Estimadas</th><th>Hrs Reales</th><th>Desviación</th><th>Estado</th><th>Personas</th></tr></thead><tbody>`;
+  d.forEach(r=>{
+    const dev=r.hrs_estimadas>0?(r.hrs_reales-r.hrs_estimadas)/r.hrs_estimadas*100:0;
+    const estado=Math.abs(dev)<10?'<span class="badge badge-green">OK</span>':dev>10?'<span class="badge badge-red">Sobreeje.</span>':'<span class="badge badge-amber">Bajo</span>';
+    html+=`<tr><td class="code">${r.codigo}</td><td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.proyecto}</td><td>${r.hrs_estimadas.toFixed(0)}h</td><td style="font-weight:500">${r.hrs_reales.toFixed(0)}h</td><td style="color:${dev>15?'var(--red)':dev<-15?'var(--amber)':'var(--green)'}">${dev>0?'+':''}${dev.toFixed(1)}%</td><td>${estado}</td><td style="text-align:center">${r.personas}</td></tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  document.getElementById('panel-horas').innerHTML=html;
+  mkChart('ch-horas',{type:'bar',data:{labels:sorted.map(r=>r.proyecto.substring(0,22)),datasets:[
+    {label:'Estimadas',data:sorted.map(r=>r.hrs_estimadas),backgroundColor:'rgba(59,130,246,.5)',borderRadius:3},
+    {label:'Reales',data:sorted.map(r=>r.hrs_reales),backgroundColor:sorted.map(r=>r.hrs_reales>r.hrs_estimadas?'rgba(239,68,68,.7)':'rgba(16,185,129,.7)'),borderRadius:3}
+  ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}}}});
+}
+
+function render(){
+  renderKPIs();
+  if(currentTab==='resumen')renderResumen();
+  else if(currentTab==='proyectos')renderProyectos();
+  else if(currentTab==='clientes')renderClientes();
+  else if(currentTab==='overhead')renderOverhead();
+  else if(currentTab==='horas')renderHoras();
+}
+
+render();
+</script>
+</body>
+</html>
