@@ -70,15 +70,19 @@ tr:hover td{background:var(--surface2)}
   </div>
 </header>
 <div class="tabs">
-  <div class="tab active" onclick="setTab('resumen')">Resumen P&L</div>
+  <div class="tab active" onclick="setTab('scorecard')">⭐ Scorecard</div>
+  <div class="tab" onclick="setTab('plmensual')">P&L Mensual</div>
+  <div class="tab" onclick="setTab('resumen')">Resumen P&L</div>
   <div class="tab" onclick="setTab('proyectos')">Por Proyecto</div>
   <div class="tab" onclick="setTab('clientes')">Por Cliente</div>
   <div class="tab" onclick="setTab('overhead')">Overhead</div>
-  <div class="tab" onclick="setTab('horas')">Horas vs Budget</div>
+  <div class="tab" onclick="setTab('horas')">Horas vs Budget (Operación)</div>
 </div>
 <div class="main">
 <div id="kpis" class="kpi-grid"></div>
-<div id="panel-resumen" class="panel active"></div>
+<div id="panel-scorecard" class="panel active"></div>
+<div id="panel-plmensual" class="panel"></div>
+<div id="panel-resumen" class="panel"></div>
 <div id="panel-proyectos" class="panel"></div>
 <div id="panel-clientes" class="panel"></div>
 <div id="panel-overhead" class="panel"></div>
@@ -94,7 +98,7 @@ const OH_PPTO=1409715.9;
 const TOTAL_VENTA=7104315.46;
 
 let currentMes='ENE';
-let currentTab='resumen';
+let currentTab='scorecard';
 let sortK='margen_real';let sortD=-1;
 const charts={};
 
@@ -143,6 +147,219 @@ function renderKPIs(){
   <div class="kpi"><div class="kpi-label">Overhead Cargado${sfx}</div><div class="kpi-val" style="color:var(--purple)">${fmtM(oh)}</div><div class="kpi-sub">Ppto mensual: ${fmtM(OH_PPTO)}</div></div>
   <div class="kpi ${mar>=0?'kpi-green':'kpi-red'}"><div class="kpi-label">Margen Neto${sfx}</div><div class="kpi-val">${fmtM(mar)}</div><div class="kpi-sub" style="color:${clr(marPct)}">${fmtPct(marPct)} del ingreso</div></div>
   <div class="kpi kpi-teal"><div class="kpi-label">Proyectos Activos${sfx}</div><div class="kpi-val">${proy}</div><div class="kpi-sub">${d.filter(r=>r.margen_real<0).length} con margen negativo</div></div>`;
+}
+
+function renderScorecard(){
+  const d=getData();
+  const meses=['ENE','FEB','MZO'];
+  const ing=sum(d,'ingreso'),cost=sum(d,'costo_nomina_real'),oh=sum(d,'oh_real'),mar=sum(d,'margen_real');
+  const gastos=cost+oh;
+  const marPct=ing>0?mar/ing*100:0;
+  const totalVentaQ1=sum(PL.filter(r=>r.mes==='ENE'),'venta');
+  const ingQ1=sum(PL,'ingreso');
+  const avanceFact=totalVentaQ1>0?ingQ1/totalVentaQ1*100:0;
+
+  // Proyectos en riesgo: ingreso=0 en el mes seleccionado con costos > 0
+  const enRiesgo=d.filter(r=>r.ingreso===0&&(r.costo_nomina_real+r.oh_real)>0);
+
+  // Semaforo global
+  const semaforoColor=marPct>=65?'var(--green)':marPct>=40?'var(--amber)':'var(--red)';
+  const semaforoLabel=marPct>=65?'RENTABLE':'RIESGO';
+  const semaforoIcon=marPct>=65?'▲':'▼';
+
+  let html=`
+  <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:20px">
+    <div class="section" style="margin-bottom:0">
+      <div class="section-title">Estado global — ${currentMes==='TODOS'?'Q1 2026':currentMes+' 2026'}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+        <div style="background:var(--surface2);border-radius:8px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase">Ingresos facturados</div>
+          <div style="font-size:24px;font-weight:700;color:var(--blue)">${fmtM(ing)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">de Q${fmtM(totalVentaQ1).replace('Q','')} ppto</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase">Gastos totales</div>
+          <div style="font-size:24px;font-weight:700;color:var(--red)">${fmtM(gastos)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Nómina + Overhead</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase">Margen neto</div>
+          <div style="font-size:24px;font-weight:700;color:${semaforoColor}">${fmtM(mar)}</div>
+          <div style="font-size:11px;color:${semaforoColor};margin-top:4px;font-weight:600">${semaforoIcon} ${fmtPct(marPct)}</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase">Proyectos en riesgo</div>
+          <div style="font-size:24px;font-weight:700;color:${enRiesgo.length>0?'var(--red)':'var(--green)'}">${enRiesgo.length}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Sin ingreso con costos activos</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:2px solid ${semaforoColor};border-radius:10px;padding:20px 24px;text-align:center;min-width:120px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Rentabilidad</div>
+      <div style="font-size:42px;font-weight:700;color:${semaforoColor};line-height:1">${Math.round(marPct)}%</div>
+      <div style="font-size:13px;font-weight:600;color:${semaforoColor};margin-top:8px">${semaforoLabel}</div>
+    </div>
+  </div>`;
+
+  // Avance de facturación por proyecto (top críticos)
+  const byProy={};
+  PL.forEach(r=>{
+    if(!byProy[r.codigo])byProy[r.codigo]={codigo:r.codigo,proyecto:r.proyecto,cliente:r.cliente,venta:r.venta,ingresos:0,gastos:0};
+    byProy[r.codigo].ingresos+=r.ingreso;
+    byProy[r.codigo].gastos+=r.costo_nomina_real+r.oh_real;
+  });
+  const proyList=Object.values(byProy).sort((a,b)=>b.venta-a.venta).slice(0,10);
+
+  html+=`<div class="grid2">
+  <div class="section">
+    <div class="section-title">Cobertura: Ingresos vs Gastos por Proyecto (Q1)</div>
+    <div class="tbl-container" style="max-height:320px"><table><thead><tr>
+      <th>Proyecto</th><th>Cliente</th><th>Venta</th><th>Facturado Q1</th><th>Gastos Q1</th><th>Cobertura</th>
+    </tr></thead><tbody>`;
+  proyList.forEach(p=>{
+    const cob=p.gastos>0?p.ingresos/p.gastos*100:null;
+    const cobColor=cob===null?'var(--muted)':cob>=100?'var(--green)':cob>=60?'var(--amber)':'var(--red)';
+    const cobLabel=cob===null?'—':cob>=100?'✅ Cubre':'⚠ No cubre';
+    html+=`<tr>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.proyecto}</td>
+      <td><span class="tag">${p.cliente}</span></td>
+      <td style="color:var(--muted)">Q${fmt(p.venta)}</td>
+      <td style="color:var(--blue);font-weight:500">Q${fmt(p.ingresos)}</td>
+      <td style="color:var(--red)">Q${fmt(p.gastos)}</td>
+      <td style="color:${cobColor};font-weight:600;font-size:11px">${cobLabel} ${cob!==null?'('+Math.round(cob)+'%)':''}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+
+  // Proyectos en riesgo detalle
+  html+=`<div class="section">
+    <div class="section-title">Proyectos sin ingreso — Pérdida activa (${currentMes==='TODOS'?'Q1':currentMes})</div>`;
+  if(enRiesgo.length===0){
+    html+=`<div style="color:var(--green);font-size:13px;padding:20px 0;text-align:center">✅ Sin proyectos en riesgo para este período</div>`;
+  } else {
+    html+=`<div class="tbl-container" style="max-height:320px"><table><thead><tr><th>Proyecto</th><th>Cliente</th><th>Venta</th><th>Costo mes</th><th>OH mes</th><th>Pérdida acumulada</th></tr></thead><tbody>`;
+    enRiesgo.forEach(r=>{
+      html+=`<tr>
+        <td style="color:var(--red);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🔴 ${r.proyecto}</td>
+        <td><span class="tag">${r.cliente}</span></td>
+        <td style="color:var(--muted)">Q${fmt(r.venta)}</td>
+        <td style="color:var(--amber)">Q${fmt(r.costo_nomina_real)}</td>
+        <td style="color:var(--purple)">Q${fmt(r.oh_real)}</td>
+        <td style="color:var(--red);font-weight:700">-Q${fmt(r.costo_nomina_real+r.oh_real)}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div>`;
+  }
+  html+=`</div></div>`;
+  document.getElementById('panel-scorecard').innerHTML=html;
+}
+
+function renderPlMensual(){
+  const meses=['ENE','FEB','MZO'];
+  const mesesLabel=['Enero','Febrero','Marzo'];
+
+  // Datos acumulados mes a mes
+  let acumIng=0,acumGastos=0;
+  const dataAcum=meses.map(m=>{
+    const d=PL.filter(r=>r.mes===m);
+    const ing=sum(d,'ingreso');
+    const gastos=sum(d,'costo_nomina_real')+sum(d,'oh_real');
+    acumIng+=ing;acumGastos+=gastos;
+    return {mes:m,ing,gastos,mar:ing-gastos,acumIng,acumGastos,acumMar:acumIng-acumGastos};
+  });
+
+  // Remanente por proyecto (presupuesto - ingresos ya cobrados)
+  const byProy={};
+  PL.forEach(r=>{
+    if(!byProy[r.codigo])byProy[r.codigo]={proyecto:r.proyecto,cliente:r.cliente,venta:r.venta,cobrado:0};
+    byProy[r.codigo].cobrado+=r.ingreso;
+  });
+  const proyRem=Object.values(byProy).map(p=>({...p,remanente:p.venta-p.cobrado,pctCobrado:p.venta>0?p.cobrado/p.venta*100:0})).sort((a,b)=>b.venta-a.venta);
+
+  let html=`<div class="grid2">
+  <div class="section">
+    <div class="section-title">Ingresos vs Gastos — Mensual y Acumulado Q1</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:11px">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#3b82f6;border-radius:2px"></span>Ingresos</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px"></span>Gastos</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#10b981;border-radius:2px"></span>Margen</span>
+    </div>
+    <div class="chart-wrap" style="height:240px"><canvas id="ch-plm-bar"></canvas></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Acumulado Q1 — Ingresos vs Gastos</div>
+    <div class="chart-wrap" style="height:240px"><canvas id="ch-plm-acum"></canvas></div>
+  </div></div>
+
+  <div class="section">
+    <div class="section-title">Semáforo mensual — ¿El ingreso cubre los gastos?</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:0">`;
+
+  dataAcum.forEach(d=>{
+    const cubre=d.ing>=d.gastos;
+    const pct=d.gastos>0?d.ing/d.gastos*100:0;
+    const color=cubre?'var(--green)':pct>=70?'var(--amber)':'var(--red)';
+    const icon=cubre?'✅':'⚠';
+    html+=`<div style="background:var(--surface2);border-radius:8px;padding:14px;border-left:3px solid ${color}">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">${d.mes} 2026 ${icon}</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:11px;color:var(--muted)">Ingresos</span>
+        <span style="font-size:12px;color:var(--blue);font-weight:600">Q${fmt(d.ing)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--muted)">Gastos</span>
+        <span style="font-size:12px;color:var(--red);font-weight:600">Q${fmt(d.gastos)}</span>
+      </div>
+      <div style="background:var(--surface);border-radius:4px;height:6px;margin-bottom:6px">
+        <div style="height:6px;border-radius:4px;background:${color};width:${Math.min(100,pct).toFixed(0)}%"></div>
+      </div>
+      <div style="font-size:11px;color:${color};font-weight:600">${cubre?'Cubre gastos ✓':'Déficit: Q'+fmt(d.gastos-d.ing)}</div>
+    </div>`;
+  });
+  html+=`</div></div>
+
+  <div class="section">
+    <div class="section-title">Remanente por cobrar — Presupuesto vs Cobrado (Q1)</div>
+    <div class="note" style="margin-bottom:12px">💰 Remanente = lo que aún falta por facturar de cada proyecto. Un remanente alto con gastos corriendo = urgencia de cobro.</div>
+    <div class="tbl-container"><table><thead><tr>
+      <th>Proyecto</th><th>Cliente</th><th>Presupuesto</th><th>Cobrado Q1</th><th>Remanente</th><th>% Avance</th><th>Estado</th>
+    </tr></thead><tbody>`;
+
+  proyRem.forEach(p=>{
+    const pct=p.pctCobrado;
+    const estado=p.remanente<=0?'<span class="badge badge-green">Cobrado</span>':pct>=50?'<span class="badge badge-amber">En curso</span>':'<span class="badge badge-red">Pendiente</span>';
+    const barColor=pct>=75?'var(--green)':pct>=40?'var(--amber)':'var(--red)';
+    html+=`<tr>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.proyecto}</td>
+      <td><span class="tag">${p.cliente}</span></td>
+      <td style="color:var(--muted)">Q${fmt(p.venta)}</td>
+      <td style="color:var(--blue);font-weight:500">Q${fmt(p.cobrado)}</td>
+      <td style="color:${p.remanente>0?'var(--amber)':'var(--green)'};font-weight:600">Q${fmt(Math.max(0,p.remanente))}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:60px;height:5px;background:var(--surface2);border-radius:3px">
+            <div style="width:${Math.min(100,pct).toFixed(0)}%;height:5px;background:${barColor};border-radius:3px"></div>
+          </div>
+          <span style="font-size:11px;color:var(--muted)">${pct.toFixed(0)}%</span>
+        </div>
+      </td>
+      <td>${estado}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  document.getElementById('panel-plmensual').innerHTML=html;
+
+  mkChart('ch-plm-bar',{type:'bar',data:{labels:mesesLabel,datasets:[
+    {label:'Ingresos',data:dataAcum.map(d=>d.ing),backgroundColor:'rgba(59,130,246,.7)',borderRadius:4},
+    {label:'Gastos',data:dataAcum.map(d=>d.gastos),backgroundColor:'rgba(239,68,68,.7)',borderRadius:4},
+    {label:'Margen',data:dataAcum.map(d=>d.mar),backgroundColor:dataAcum.map(d=>d.mar>=0?'rgba(16,185,129,.7)':'rgba(239,68,68,.4)'),borderRadius:4,type:'bar'}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtM(v)},grid:{color:'rgba(255,255,255,.05)'}}}}});
+
+  mkChart('ch-plm-acum',{type:'line',data:{labels:mesesLabel,datasets:[
+    {label:'Ingresos acum.',data:dataAcum.map(d=>d.acumIng),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.1)',fill:true,tension:.3,pointRadius:4},
+    {label:'Gastos acum.',data:dataAcum.map(d=>d.acumGastos),borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.1)',fill:true,tension:.3,pointRadius:4},
+    {label:'Margen acum.',data:dataAcum.map(d=>d.acumMar),borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.05)',fill:false,tension:.3,pointRadius:4,borderDash:[4,4]}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtM(v)},grid:{color:'rgba(255,255,255,.05)'}}}}});
 }
 
 function renderResumen(){
@@ -315,7 +532,9 @@ function renderHoras(){
 
 function render(){
   renderKPIs();
-  if(currentTab==='resumen')renderResumen();
+  if(currentTab==='scorecard')renderScorecard();
+  else if(currentTab==='plmensual')renderPlMensual();
+  else if(currentTab==='resumen')renderResumen();
   else if(currentTab==='proyectos')renderProyectos();
   else if(currentTab==='clientes')renderClientes();
   else if(currentTab==='overhead')renderOverhead();
