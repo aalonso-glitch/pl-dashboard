@@ -201,36 +201,73 @@ function renderScorecard(){
     </div>
   </div>`;
 
-  // Avance de facturación por proyecto (top críticos)
-  const byProy={};
+  // Semáforo CeCo: 4 columnas CEO — usar todos los meses para Q1, o filtro actual
+  const byCeco={};
   PL.forEach(r=>{
-    if(!byProy[r.codigo])byProy[r.codigo]={codigo:r.codigo,proyecto:r.proyecto,cliente:r.cliente,venta:r.venta,ingresos:0,gastos:0};
-    byProy[r.codigo].ingresos+=r.ingreso;
-    byProy[r.codigo].gastos+=r.costo_nomina_real+r.oh_real;
+    if(!byCeco[r.codigo])byCeco[r.codigo]={
+      codigo:r.codigo,proyecto:r.proyecto,cliente:r.cliente,venta:r.venta,
+      facturado:0,costoProyectado:0,costoReal:0
+    };
+    byCeco[r.codigo].facturado+=r.ingreso;
+    byCeco[r.codigo].costoProyectado+=r.costo_nomina_estimado+r.oh_presupuesto;
+    byCeco[r.codigo].costoReal+=r.costo_nomina_real+r.oh_real;
   });
-  const proyList=Object.values(byProy).sort((a,b)=>b.venta-a.venta).slice(0,10);
+  // Si hay filtro de mes, recalcular solo con ese mes
+  const cecoData=(()=>{
+    const src=currentMes==='TODOS'?PL:PL.filter(r=>r.mes===currentMes);
+    const m={};
+    src.forEach(r=>{
+      if(!m[r.codigo])m[r.codigo]={codigo:r.codigo,proyecto:r.proyecto,cliente:r.cliente,venta:r.venta,facturado:0,costoProyectado:0,costoReal:0};
+      m[r.codigo].facturado+=r.ingreso;
+      m[r.codigo].costoProyectado+=r.costo_nomina_estimado+r.oh_presupuesto;
+      m[r.codigo].costoReal+=r.costo_nomina_real+r.oh_real;
+    });
+    return Object.values(m).sort((a,b)=>b.venta-a.venta);
+  })();
 
-  html+=`<div class="grid2">
-  <div class="section">
-    <div class="section-title">Cobertura: Ingresos vs Gastos por Proyecto (Q1)</div>
-    <div class="tbl-container" style="max-height:320px"><table><thead><tr>
-      <th>Proyecto</th><th>Cliente</th><th>Venta</th><th>Facturado Q1</th><th>Gastos Q1</th><th>Cobertura</th>
+  const semaforoRow=(p)=>{
+    // Verde: hay ingreso Y costo real <= costo proyectado
+    // Amarillo: hay ingreso pero costo real > proyectado, o ingreso parcial
+    // Rojo: sin ingreso o costo real supera ingreso
+    if(p.facturado===0) return {color:'var(--red)',icon:'🔴',label:'Sin facturar'};
+    const cubre=p.facturado>=p.costoReal;
+    const dentroPpto=p.costoReal<=p.costoProyectado*1.1;
+    if(cubre&&dentroPpto) return {color:'var(--green)',icon:'🟢',label:'Saludable'};
+    if(cubre&&!dentroPpto) return {color:'var(--amber)',icon:'🟡',label:'Costo elevado'};
+    return {color:'var(--red)',icon:'🔴',label:'Déficit'};
+  };
+
+  html+=`<div class="section">
+    <div class="section-title">Semáforo CeCo — Salud del Proyecto (${currentMes==='TODOS'?'Q1 2026':currentMes+' 2026'})</div>
+    <div class="note" style="margin-bottom:12px">🟢 Saludable: facturado cubre costos y dentro de presupuesto &nbsp;|&nbsp; 🟡 Costo elevado: cubre pero supera ppto +10% &nbsp;|&nbsp; 🔴 Déficit / Sin facturar</div>
+    <div class="tbl-container"><table><thead><tr>
+      <th>CeCo</th>
+      <th>Proyecto</th>
+      <th>Cliente</th>
+      <th>Venta Total</th>
+      <th>Facturado al día</th>
+      <th>Costo Proyectado</th>
+      <th>Costo al día</th>
+      <th>Semáforo</th>
     </tr></thead><tbody>`;
-  proyList.forEach(p=>{
-    const cob=p.gastos>0?p.ingresos/p.gastos*100:null;
-    const cobColor=cob===null?'var(--muted)':cob>=100?'var(--green)':cob>=60?'var(--amber)':'var(--red)';
-    const cobLabel=cob===null?'—':cob>=100?'✅ Cubre':'⚠ No cubre';
+  cecoData.forEach(p=>{
+    const sem=semaforoRow(p);
+    const difCosto=p.costoReal-p.costoProyectado;
+    const difColor=difCosto>0?'var(--red)':'var(--green)';
     html+=`<tr>
-      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.proyecto}</td>
+      <td><span class="code">${p.codigo}</span></td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.proyecto}">${p.proyecto}</td>
       <td><span class="tag">${p.cliente}</span></td>
       <td style="color:var(--muted)">Q${fmt(p.venta)}</td>
-      <td style="color:var(--blue);font-weight:500">Q${fmt(p.ingresos)}</td>
-      <td style="color:var(--red)">Q${fmt(p.gastos)}</td>
-      <td style="color:${cobColor};font-weight:600;font-size:11px">${cobLabel} ${cob!==null?'('+Math.round(cob)+'%)':''}</td>
+      <td style="color:var(--blue);font-weight:600">Q${fmt(p.facturado)}</td>
+      <td style="color:var(--purple)">Q${fmt(p.costoProyectado)}</td>
+      <td style="color:${difColor};font-weight:500">Q${fmt(p.costoReal)} <span style="font-size:10px">(${difCosto>0?'+':'-'}Q${fmt(Math.abs(difCosto))})</span></td>
+      <td style="color:${sem.color};font-weight:700;white-space:nowrap">${sem.icon} ${sem.label}</td>
     </tr>`;
   });
   html+=`</tbody></table></div></div>`;
 
+  html+=`<div class="grid2">`;
   // Proyectos en riesgo detalle
   html+=`<div class="section">
     <div class="section-title">Proyectos sin ingreso — Pérdida activa (${currentMes==='TODOS'?'Q1':currentMes})</div>`;
@@ -250,7 +287,7 @@ function renderScorecard(){
     });
     html+=`</tbody></table></div>`;
   }
-  html+=`</div></div>`;
+  html+=`</div></div></div>`;
   document.getElementById('panel-scorecard').innerHTML=html;
 }
 
@@ -509,25 +546,105 @@ function renderOverhead(){
 }
 
 function renderHoras(){
-  const d=getData();
-  const sorted=[...d].sort((a,b)=>b.hrs_reales-a.hrs_reales).slice(0,15);
-  let html=`<div class="note">📊 Las <strong>Horas Estimadas</strong> representan el presupuesto de tiempo. Las <strong>Horas Reales</strong> impactan directamente el costo de nómina. Desviaciones &gt;20% requieren análisis.</div>
-  <div class="section"><div class="section-title">Top 15 Proyectos por Horas Reales — ${currentMes==='TODOS'?'Q1':currentMes}</div>
-    <div class="chart-wrap" style="height:${sorted.length*38+60}px"><canvas id="ch-horas"></canvas></div>
-  </div>
-  <div class="section"><div class="section-title">Detalle Horas por Proyecto</div>
-  <div class="tbl-container"><table><thead><tr><th>CeCo</th><th>Proyecto</th><th>Hrs Estimadas</th><th>Hrs Reales</th><th>Desviación</th><th>Estado</th><th>Personas</th></tr></thead><tbody>`;
-  d.forEach(r=>{
-    const dev=r.hrs_estimadas>0?(r.hrs_reales-r.hrs_estimadas)/r.hrs_estimadas*100:0;
-    const estado=Math.abs(dev)<10?'<span class="badge badge-green">OK</span>':dev>10?'<span class="badge badge-red">Sobreeje.</span>':'<span class="badge badge-amber">Bajo</span>';
-    html+=`<tr><td class="code">${r.codigo}</td><td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.proyecto}</td><td>${r.hrs_estimadas.toFixed(0)}h</td><td style="font-weight:500">${r.hrs_reales.toFixed(0)}h</td><td style="color:${dev>15?'var(--red)':dev<-15?'var(--amber)':'var(--green)'}">${dev>0?'+':''}${dev.toFixed(1)}%</td><td>${estado}</td><td style="text-align:center">${r.personas}</td></tr>`;
+  const meses=['ENE','FEB','MZO'];
+
+  // Agrupar por código — acumular horas Q1 completo siempre (es vista operacional)
+  const byCodigo={};
+  PL.forEach(r=>{
+    if(!byCodigo[r.codigo])byCodigo[r.codigo]={
+      codigo:r.codigo,proyecto:r.proyecto,cliente:r.cliente,
+      venta:r.venta,personas:r.personas,
+      hrsReales:0,hrsEstimadas:0,
+      costoNomReal:0
+    };
+    byCodigo[r.codigo].hrsReales+=r.hrs_reales;
+    byCodigo[r.codigo].hrsEstimadas+=r.hrs_estimadas;
+    byCodigo[r.codigo].costoNomReal+=r.costo_nomina_real;
   });
+
+  const proyHoras=Object.values(byCodigo).map(p=>{
+    // Tarifa nominal promedio = costo nómina real / horas reales
+    const tarifaProm=p.hrsReales>0?p.costoNomReal/p.hrsReales:null;
+    // Horas vendidas = venta / tarifa promedio
+    const hrsVendidas=tarifaProm&&tarifaProm>0?p.venta/tarifaProm:null;
+    const hrsRestantes=hrsVendidas!==null?hrsVendidas-p.hrsReales:null;
+    const devPct=p.hrsEstimadas>0?(p.hrsReales-p.hrsEstimadas)/p.hrsEstimadas*100:null;
+    return {...p,tarifaProm,hrsVendidas,hrsRestantes,devPct};
+  }).sort((a,b)=>b.hrsReales-a.hrsReales);
+
+  // Filtrar según mes si no es TODOS
+  const d=currentMes==='TODOS'?proyHoras:proyHoras;// Horas siempre Q1 acumulado para ver remanente real
+
+  const top12=[...proyHoras].slice(0,12);
+
+  let html=`<div class="note">⏱ <strong>Horas vendidas</strong> = Venta ÷ tarifa nominal promedio del equipo. <strong>Horas restantes</strong> = vendidas − reales acumuladas Q1. Rojo = horas agotadas o superadas. S/D = sin tarifa nominal registrada.</div>
+  <div class="section">
+    <div class="section-title">Top 12 Proyectos — Horas Vendidas vs Reales (Q1 acumulado)</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:11px">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:rgba(59,130,246,.5);border-radius:2px"></span>Estimadas</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#10b981;border-radius:2px"></span>Reales (dentro de presupuesto)</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px"></span>Reales (excede estimado)</span>
+    </div>
+    <div class="chart-wrap" style="height:${top12.length*38+60}px"><canvas id="ch-horas"></canvas></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Control de Horas por Proyecto — Q1 2026</div>
+    <div class="tbl-container"><table><thead><tr>
+      <th>CeCo</th>
+      <th>Proyecto</th>
+      <th>Cliente</th>
+      <th title="Venta total ÷ tarifa nominal promedio del equipo">Horas Vendidas</th>
+      <th>Hrs Estimadas</th>
+      <th>Hrs Reales Q1</th>
+      <th>Hrs Restantes</th>
+      <th>Desviación</th>
+      <th>Estado</th>
+    </tr></thead><tbody>`;
+
+  proyHoras.forEach(r=>{
+    const hvLabel=r.hrsVendidas!==null?Math.round(r.hrsVendidas)+'h':'<span style="color:var(--muted)">S/D</span>';
+    const restLabel=r.hrsRestantes!==null
+      ?`<span style="color:${r.hrsRestantes>=0?'var(--green)':'var(--red)'};font-weight:700">${r.hrsRestantes>=0?'+':''} ${Math.round(r.hrsRestantes)}h</span>`
+      :'<span style="color:var(--muted)">S/D</span>';
+    const devLabel=r.devPct!==null
+      ?`<span style="color:${r.devPct>15?'var(--red)':r.devPct<-15?'var(--amber)':'var(--green)'}">${r.devPct>0?'+':''}${r.devPct.toFixed(1)}%</span>`
+      :'—';
+
+    let estadoBadge;
+    if(r.hrsRestantes===null) estadoBadge='<span class="badge badge-amber">S/D</span>';
+    else if(r.hrsRestantes<0) estadoBadge='<span class="badge badge-red">Agotado</span>';
+    else if(r.hrsRestantes/r.hrsVendidas<0.1) estadoBadge='<span class="badge badge-amber">Crítico</span>';
+    else estadoBadge='<span class="badge badge-green">OK</span>';
+
+    html+=`<tr>
+      <td><span class="code">${r.codigo}</span></td>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.proyecto}">${r.proyecto}</td>
+      <td><span class="tag">${r.cliente}</span></td>
+      <td style="font-weight:500;color:var(--teal)">${hvLabel}</td>
+      <td style="color:var(--muted)">${Math.round(r.hrsEstimadas)}h</td>
+      <td style="font-weight:500">${Math.round(r.hrsReales)}h</td>
+      <td>${restLabel}</td>
+      <td>${devLabel}</td>
+      <td>${estadoBadge}</td>
+    </tr>`;
+  });
+
   html+=`</tbody></table></div></div>`;
   document.getElementById('panel-horas').innerHTML=html;
-  mkChart('ch-horas',{type:'bar',data:{labels:sorted.map(r=>r.proyecto.substring(0,22)),datasets:[
-    {label:'Estimadas',data:sorted.map(r=>r.hrs_estimadas),backgroundColor:'rgba(59,130,246,.5)',borderRadius:3},
-    {label:'Reales',data:sorted.map(r=>r.hrs_reales),backgroundColor:sorted.map(r=>r.hrs_reales>r.hrs_estimadas?'rgba(239,68,68,.7)':'rgba(16,185,129,.7)'),borderRadius:3}
-  ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}}}});
+
+  mkChart('ch-horas',{type:'bar',data:{
+    labels:top12.map(r=>r.proyecto.substring(0,20)),
+    datasets:[
+      {label:'Estimadas',data:top12.map(r=>r.hrsEstimadas),backgroundColor:'rgba(59,130,246,.4)',borderRadius:3},
+      {label:'Reales',data:top12.map(r=>r.hrsReales),backgroundColor:top12.map(r=>r.hrsReales>r.hrsEstimadas?'rgba(239,68,68,.75)':'rgba(16,185,129,.75)'),borderRadius:3},
+    ]
+  },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${Math.round(ctx.raw)}h`}}},
+    scales:{
+      x:{ticks:{color:'#94a3b8',callback:v=>v+'h'},grid:{color:'rgba(255,255,255,.05)'}},
+      y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{display:false}}
+    }
+  }});
 }
 
 function render(){
